@@ -992,7 +992,8 @@ function initSnakeGame() {
       (
         !canMoveToTile(pos.x, pos.y) ||
         snake.some(s => s.x === pos.x && s.y === pos.y) ||
-        foods.some(f => f.x === pos.x && f.y === pos.y)
+        foods.some(f => f.x === pos.x && f.y === pos.y) ||
+        pos.x >= tileCountX || pos.y >= tileCountY
       )
     );
     return pos;

@@ -23,8 +23,6 @@ _popTweenTimeline = null;
 var lastPatternId = null;
 var _isSimulationPaused = false;
 var gameStarted = false;
-var isAudioPlaying = false;
-var allowIdleAfterAudio = true;
 
 var _audioIndex = 0;
 _videoId = null;
@@ -105,10 +103,9 @@ function addSectionData() {
           // This runs when Audio 2 ends
           gameStarted = true;
           resetSimulationAudio();
-          isAudioPlaying = false;
           $(".wrapTextaudio").removeClass("playing").addClass("paused")
           // $(".wrapTextaudio").addClass("paused");
-          window.enableCaterpillarMovement();          
+          window.enableCaterpillarMovement();
         });
 
       });
@@ -203,8 +200,8 @@ function addSectionData() {
         if (window.stopSnakeIdle) {
           window.stopSnakeIdle();
         }
-        $(".playPause").hide();
         jumtoPage(2)
+
       });
 
       // $(".flipTextAudio").on("click", replayLastAudio);
@@ -334,36 +331,21 @@ function initCaterpillarGame() {
   let pendingMove = null;
 
   function idleStartTimer() {
-
-    // console.log("zzzzzzz", isAudioPlaying);
-
-    // ❌ If audio playing → do NOT start idle timer
-    if (isAudioPlaying) {
-      return;
-    }
-
-    // Reset idle state
-    stopIdleSoundNow();
-    isIdle = false;
-
-    // Clear previous timer
     if (idleTimer) {
       clearTimeout(idleTimer);
       idleTimer = null;
     }
+    stopIdleSoundNow();
+    isIdle = false;
 
-    // Only start idle when game has actually started
-    if (gameStarted && isGameActive && !isGameEnded && allowIdleAfterAudio) {
+    if (isGameActive && !isGameEnded) {
       idleTimer = setTimeout(triggerIdleState, IDLE_DURATION);
     }
   }
 
   function idleStopTimer() {
-    if (idleTimer) {
-      clearTimeout(idleTimer);
-      idleTimer = null;
-    }
-
+    clearTimeout(idleTimer);
+    idleTimer = null;
     stopIdleSoundNow();
     isIdle = false;
   }
@@ -372,7 +354,8 @@ function initCaterpillarGame() {
      CONTROLS DOM
   ========================= */
   const mount = document.body;
-  const controls = createElement("div", "controls", mount);
+  const outerContainer = createElement("div", "outer-container", mount);
+  const controls = createElement("div", "controls", outerContainer);
 
   function createButton(dir, parent = controls) {
     const btn = createElement("button", null, parent);
@@ -857,12 +840,7 @@ function initCaterpillarGame() {
       isGameActive = false;
 
       // $(".wrapTextaudio").prop("disabled", true);
-
-      playBtnSounds(_pageData.sections[sectionCnt - 1].correctAudio, function () {
-        isAudioPlaying = false;
-        console.log("Correct Audio ended");
-      });
-
+      playBtnSounds(_pageData.sections[sectionCnt - 1].correctAudio);
       $(".wrapTextaudio").each(function () {
         if ($(this).hasClass("playing")) {
           $(this).removeClass("playing").addClass("paused");
@@ -940,11 +918,7 @@ function initCaterpillarGame() {
           $(this).removeClass("playing").addClass("paused");
         }
       });
-
-      playBtnSounds(_pageData.sections[sectionCnt - 1].wrongAudio, function () {
-        isAudioPlaying = false;
-      });
-
+      playBtnSounds(_pageData.sections[sectionCnt - 1].wrongAudio);
       updateText(_pageData.sections[sectionCnt - 1].content.wrongFeedback.text, _pageData.sections[sectionCnt - 1].content.wrongFeedback.audioSrc);
       isGameActive = false;
 
@@ -1044,7 +1018,6 @@ function initCaterpillarGame() {
     const h = rect.height;
     return clipPolygon.map(([px, py]) => [px / 100 * w, py / 100 * h]);
   }
-
 
   function isPointInPolygon(x, y, polygon) {
     let inside = false;
@@ -1156,8 +1129,6 @@ function initCaterpillarGame() {
       { ...correctPos, value: nextValue, correct: true, spawnTime: now },
       { ...wrongPos, value: wrongValue, correct: false, spawnTime: now }
     ];
-
-    console.log("foods spwannnn");    
   }
 
   function startGame() {
@@ -1258,9 +1229,8 @@ function initCaterpillarGame() {
   window.enableCaterpillarMovement = function () {
     console.log("Caterpillar inputs unlocked");
     isGameActive = true;
-    gameStarted = true;     // <-- ADD THIS
     idleStartTimer();
-  };  
+  };
 
   document.addEventListener("keydown", e => {
     if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].indexOf(e.code) > -1) {
@@ -1337,7 +1307,6 @@ function initCaterpillarGame() {
     console.log("Caterpillar enabled");
     isGameActive = true;
     isGameEnded = false;
-    gameStarted = true;
     idleStartTimer();
   };
 
@@ -1382,21 +1351,6 @@ function initCaterpillarGame() {
      ✅ NEW: IDLE TIMER CONTROLS
   ========================= */
 
-  function setupGlobalActivityListeners() {
-    document.addEventListener("mousemove", resetIdleTimer, { passive: true });
-    document.addEventListener("mousedown", resetIdleTimer, { passive: true });
-    document.addEventListener("click", resetIdleTimer, { passive: true });
-    document.addEventListener("keydown", resetIdleTimer, { passive: true });
-    document.addEventListener("keypress", resetIdleTimer, { passive: true });
-    document.addEventListener("touchstart", resetIdleTimer, { passive: true });
-    document.addEventListener("touchmove", resetIdleTimer, { passive: true });
-    document.addEventListener("scroll", resetIdleTimer, { passive: true });
-    document.addEventListener("pointerdown", resetIdleTimer, { passive: true });
-    document.addEventListener("pointermove", resetIdleTimer, { passive: true });
-  }
-
-  setupGlobalActivityListeners();
-
   // Start idle timer - will trigger idle state after IDLE_DURATION
   window.startIdleTimer = function () {
     idleStartTimer();
@@ -1408,110 +1362,15 @@ function initCaterpillarGame() {
     idleStopTimer();
     console.log("Idle timer stopped");
   };
-  
-  const simAudio = document.getElementById("simulationAudio");
-
-  simAudio.addEventListener("ended", () => {
-
-    console.log("Correreradsf EDDDDDD 0", allowIdleAfterAudio, isGameActive);
-
-    isAudioPlaying = false;
-    // Do NOT restart idle timer if we're in final screen or win animations
-    if (!allowIdleAfterAudio) return;
-
-
-    // Do NOT restart idle if game not active
-    // if (!isGameActive) return;
-
-    console.log("Correreradsf EDDDDDD");
-
-    // Restart idle only if user is not interacting
-    enableTimer();
-  });
-
-
-  const SNAKE_PAGE = 4;
-
-  window.addEventListener("audioPlayingChanged", (e) => {
-
-    // console.log("working", gameStarted,e.detail.value);
-    // Run only if this is the active page
-    if (_controller.pageCnt !== SNAKE_PAGE) return;
-
-
-    if (!gameStarted) return;
-
-
-    const popupOpen = e.detail.value;
-    console.log("Dispatched", popupOpen);
-
-    if (popupOpen) {
-      console.log("Popup opened -> stopping idle");
-      disableTimer();
-
-      // 🔥 prevent idle from restarting until popup closes
-      allowIdleAfterAudio = false;
-    } else {
-      console.log("Popup closed -> resuming idle if allowed", !isAudioPlaying, isGameActive);
-      enableTimer();
-    }
-  });
-
-
-
 }
 
-
-function disableTimer() {
-  window.disableCaterpillarControls();
-  // window.stopIdleTimer();
-}
-
-function enableTimer() {
-  if (gameStarted) {
-    window.enableCaterpillarControls();
-
-    // window.startIdleTimer();
-  }
-}
 
 
 // Simulation play and pause
 
 
-// function playPauseSimulation(btn) {
-//   playClickThen();
-//   var audio = document.getElementById("simulationAudio");
-//   var hasAudio = !!audio.getAttribute("src");
-
-//   _isSimulationPaused = !_isSimulationPaused;
-
-//   if (_isSimulationPaused) {
-//     // Pause state
-//     if (hasAudio) {
-//       audio.pause();
-//     }
-//     disableAll();
-//     btn.classList.remove("play");
-//     btn.classList.add("pause");
-//     btn.dataset.tooltip = "Play";
-//   } else {
-//     // Play state
-//     if (hasAudio) {
-//       audio.play().catch(() => { });
-//     }
-//     enableAll();
-//     btn.classList.remove("pause");
-//     btn.classList.add("play");
-//     btn.dataset.tooltip = "Pause";
-//   }
-
-// }
-
-
 function playPauseSimulation(btn) {
   playClickThen();
-  console.log(isAudioPlaying, "audio palying");
   var audio = document.getElementById("simulationAudio");
   var hasAudio = !!audio.getAttribute("src");
 
@@ -1519,7 +1378,7 @@ function playPauseSimulation(btn) {
 
   if (_isSimulationPaused) {
     // Pause state
-    if (hasAudio && isAudioPlaying) {
+    if (hasAudio) {
       audio.pause();
     }
     disableAll();
@@ -1528,18 +1387,16 @@ function playPauseSimulation(btn) {
     btn.dataset.tooltip = "Play";
   } else {
     // Play state
-    // Only resume if we still have an active (not-ended) clip
-    if (hasAudio && isAudioPlaying) {
+    if (hasAudio) {
       audio.play().catch(() => { });
     }
-    // If not playing anymore (ended), do NOT start it again
     enableAll();
     btn.classList.remove("pause");
     btn.classList.add("play");
     btn.dataset.tooltip = "Pause";
   }
-}
 
+}
 
 function enableAll() {
   playClickThen();
@@ -1628,6 +1485,9 @@ function stayPage() {
     resumeSimulationAudio();
   }
 
+  resetSimulationAudio();
+  window.enableCaterpillarMovement();
+
   $("#home-popup").hide();
   enableTimer();
 }
@@ -1640,7 +1500,6 @@ function leavePage() {
   if (window.stopSnakeIdle) {
     window.stopSnakeIdle();
   }
-
 
   var audio = document.getElementById("simulationAudio");
   if (audio) {
@@ -1663,7 +1522,6 @@ function leavePage() {
 function jumtoPage(pageNo) {
   playClickThen();
 
-
   _controller.pageCnt = pageNo;
   console.log(pageNo, "pageNumber");
 
@@ -1674,47 +1532,47 @@ function jumtoPage(pageNo) {
 
 var activeAudio = null;
 
-
 function playBtnSounds(soundFile, callback) {
   const audio = document.getElementById("simulationAudio");
+
   audio.muted = false;
 
   if (!soundFile) {
+    console.warn("Audio source missing!");
+    // If audio is missing but a callback exists, we should probably run it 
+    // so the flow doesn't hang, or just return.
     if (callback) callback();
     return;
   }
 
-  // Stop previous
+  // 1. CRITICAL: Clear any existing onended triggers from previous plays
+  audio.onended = null;
+
+  // Stop previous audio if it exists
   if (activeAudio && !activeAudio.paused) {
     activeAudio.pause();
   }
 
   audio.loop = false;
-
-  // Attach ended BEFORE play; use addEventListener to avoid overwrite issues
-  const onEnded = () => {
-    audio.removeEventListener('ended', onEnded);
-    if (callback) callback();
-  };
-  audio.addEventListener('ended', onEnded);
-
-  // Make sure we can replay the same src from start
-  const same = audio.src === soundFile || audio.currentSrc === soundFile;
   audio.src = soundFile;
-  if (same) {
-    try { audio.currentTime = 0; } catch (e) { }
-  } else {
-    try { audio.load(); } catch (e) { }
-  }
+  audio.load();
 
   activeAudio = audio;
-  isAudioPlaying = true;
 
+  // 2. If a callback is provided, attach it
+  if (typeof callback === "function") {
+    audio.onended = () => {
+      // Remove self to prevent future loops
+      audio.onended = null;
+      callback();
+    };
+  }
+
+  console.log("Playing:", soundFile);
   audio.play().catch((err) => {
     console.warn("Audio play error:", err);
-    // Fallback to keep flow moving
-    audio.removeEventListener('ended', onEnded);
-    if (callback) callback();
+    // Optional: If play fails, should we trigger callback?
+    // if (callback) callback(); 
   });
 }
 
@@ -1904,34 +1762,50 @@ function showEndAnimations() {
 // }
 
 
-
-function replayLastAudio(btnElement, audioSrc) {
+function replayLastAudio(btnElement) {
   playClickThen();
 
   const courseAudio = document.getElementById("courseAudio");
   const simulationAudio = document.getElementById("simulationAudio");
 
+  const index = parseInt(btnElement.id.split("_")[1]);
+  const replayAudios =
+    _pageData.sections[sectionCnt - 1].content.replayAudios;
+
   let activeAudio = null;
 
+  console.log("replayyyy");
+  // --------------------------------------------------
+  // 1️⃣ Detect active playing audio
+  // --------------------------------------------------
   if (courseAudio && !courseAudio.paused && !courseAudio.ended) {
     activeAudio = courseAudio;
-  } else if (simulationAudio && !simulationAudio.paused && !simulationAudio.ended) {
+  }
+  else if (simulationAudio && !simulationAudio.paused && !simulationAudio.ended) {
     activeAudio = simulationAudio;
   }
 
-  // If something playing → toggle mute
+  // --------------------------------------------------
+  // 2️⃣ If something is playing → just toggle mute
+  // --------------------------------------------------
   if (activeAudio) {
     activeAudio.muted = !activeAudio.muted;
     updateButtonUI(btnElement, !activeAudio.muted);
     return;
   }
 
-  // Nothing playing → play passed audio
-  if (audioSrc) {
-    playBtnSounds(audioSrc);
+  // --------------------------------------------------
+  // 3️⃣ Nothing playing → call playBtnSounds()
+  // --------------------------------------------------
+  if (replayAudios && replayAudios[index]) {
+
+    console.log("Replay audioso");
+    playBtnSounds(replayAudios[index]);
+
     resetAllButtons();
     updateButtonUI(btnElement, true);
 
+    // Optional: reset UI when replay ends
     if (simulationAudio) {
       simulationAudio.onended = function () {
         updateButtonUI(btnElement, false);
@@ -1939,7 +1813,6 @@ function replayLastAudio(btnElement, audioSrc) {
     }
   }
 }
-
 
 function stopAllAudios() {
   const courseAudio = document.getElementById("courseAudio");

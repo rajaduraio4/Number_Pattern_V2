@@ -131,7 +131,7 @@
 
 						.inst {
 							margin-top: 30px;
-							height: 35px;
+							height: 40px;
 							width: 100%;
 							text-align: center;
 
@@ -525,95 +525,138 @@
 								}
 
 								/* Keep controls over the canvas instead of reserving layout space */
-								.controls {
+								.outer-container {
 									flex: 0 0 20%;
-									max-width: 20%;
+									height: 150px;
+									width: 150px !important;
 									height: 100%;
+									align-content: center;
+								}
 
-									display: grid;
-									place-content: center;
-
-									grid-template-columns: repeat(3, auto);
-									grid-template-rows: repeat(3, auto);
-									grid-template-areas:
-										". up ."
-										"left center right"
-										". down .";
-
-									gap: 0px;
-
-									position: relative; // ❗ remove absolute
-									right: auto;
-									top: auto;
+								.controls {
+									width: 150px;
+									/* Set exact width */
+									height: 150px;
+									margin-right:20px;
+									/* Set exact height */
+									display: flex;
+									justify-content: center;
+									align-items: center;
+									flex-direction: column;
+									/* Stack buttons vertically */
+									gap: 5px;
+									/* Space between buttons */
+									border-radius: 50%;
+									/* Circular shape */
+									background-color: transparent;
+									position: relative;
+									// margin: 0 auto;
+									/* Center the control box */
 									z-index: 2;
+								}
+
+								.controls .row {
+									display: flex;
+									justify-content: space-between;
+									width: 100%;
+									/* Take up full width of the container */
+									align-items: center;
 								}
 
 
 								.controls button {
-									width: clamp(70px, 6vw, 100px);
-									height: clamp(70px, 6vw, 100px);
-									background: transparent;
-									border: none;
-									// border: 1px solid #dcdcdc;
-									border-radius: 12px;
+									width: 80px;
+									/* Set size for all buttons */
+									height: 32px;
+									/* Set size for all buttons */
 									background-color: transparent;
+									border: none;
+									border-radius: 50%;
+									/* Round the buttons */
 									background-repeat: no-repeat;
 									background-position: center;
 									background-size: contain;
-									pointer-events: none;
-									// cursor: pointer;
+									pointer-events: auto;
+									cursor: pointer;
 									transition: transform 0.1s ease;
+									display: flex;
+									justify-content: center;
+									align-items: center;
 								}
 
-								.controls button[data-dir="up"] {
-									grid-area: up;
-								}
+								// .controls button[data-dir="up"] {
+								// 	position: absolute;
+								// 	top: 10px;
+								// 	/* Adjust position inside the circle */
+								// 	left: 50%;
+								// 	transform: translateX(-50%);
+								// }
 
-								.controls button[data-dir="down"] {
-									grid-area: down;
-								}
+								// .controls button[data-dir="down"] {
+								// 	position: absolute;
+								// 	bottom: 10px;
+								// 	/* Adjust position inside the circle */
+								// 	left: 50%;
+								// 	transform: translateX(-50%);
+								// }
 
-								.controls button[data-dir="left"] {
-									grid-area: left;
-								}
+								// .controls button[data-dir="left"] {
+								// 	position: absolute;
+								// 	left: 10px;
+								// 	/* Adjust position inside the circle */
+								// 	top: 50%;
+								// 	transform: translateY(-50%);
+								// }
 
-								.controls button[data-dir="right"] {
-									grid-area: right;
-								}
-								
+								// .controls button[data-dir="right"] {
+								// 	position: absolute;
+								// 	right: 10px;
+								// 	/* Adjust position inside the circle */
+								// 	top: 50%;
+								// 	transform: translateY(-50%);
+								// }
+
 								.controls button:active {
 									transform: scale(0.85);
 								}
 
+								.controls button:hover {
+									transform: scale(0.85);
+								}
 
 								.controls button:nth-child(1) {
 									grid-area: up;
 								}
 
 								.controls button img {
-									width: calc(100% - 30px);
+									width: 70%;
+									/* Adjust image width inside the button */
 									height: auto;
 									object-fit: contain;
-									pointer-events: auto;
-									cursor: pointer;
-									pointer-events: auto;
-									/* click goes to button */
 								}
 
 								button[data-dir="down"] {
 									img {
-										width: 80px;
+										width: 85px;
 									}
 								}
 
 								button[data-dir="up"] {
 									img {
-										width: 80px;
+										width: 85px;
 									}
 								}
 
+								.controls .middle .left img,
+								.controls .middle .right img {
+									width: 85px;
+								}
+
 								.controls .middle {
-									display: contents;
+									display: flex;
+									width: 100%;
+									justify-content: space-between;
+
 								}
 
 								.controls .middle button:nth-child(1) {

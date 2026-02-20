@@ -140,7 +140,7 @@ $bg-position: -120px -120px, 0 0, 20px 50px, 25px 55px, 50px 125px;*/
 }
 #section-1 .content-holder .col-left .content .content-bg .content-style .inst {
   margin-top: 30px;
-  height: 35px;
+  height: 40px;
   width: 100%;
   text-align: center;
 }
@@ -477,70 +477,89 @@ $bg-position: -120px -120px, 0 0, 20px 50px, 25px 55px, 50px 125px;*/
 #section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container {
   /* Keep controls over the canvas instead of reserving layout space */
 }
-#section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container .controls {
+#section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container .outer-container {
   flex: 0 0 20%;
-  max-width: 20%;
+  height: 150px;
+  width: 150px !important;
   height: 100%;
-  display: grid;
-  place-content: center;
-  grid-template-columns: repeat(3, auto);
-  grid-template-rows: repeat(3, auto);
-  grid-template-areas: ". up ." "left center right" ". down .";
-  gap: 0px;
+  align-content: center;
+}
+#section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container .controls {
+  width: 150px;
+  /* Set exact width */
+  height: 150px;
+  margin-right: 20px;
+  /* Set exact height */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  /* Stack buttons vertically */
+  gap: 5px;
+  /* Space between buttons */
+  border-radius: 50%;
+  /* Circular shape */
+  background-color: transparent;
   position: relative;
-  right: auto;
-  top: auto;
+  /* Center the control box */
   z-index: 2;
 }
+#section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container .controls .row {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  /* Take up full width of the container */
+  align-items: center;
+}
 #section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container .controls button {
-  width: clamp(70px, 6vw, 100px);
-  height: clamp(70px, 6vw, 100px);
-  background: transparent;
-  border: none;
-  border-radius: 12px;
+  width: 80px;
+  /* Set size for all buttons */
+  height: 32px;
+  /* Set size for all buttons */
   background-color: transparent;
+  border: none;
+  border-radius: 50%;
+  /* Round the buttons */
   background-repeat: no-repeat;
   background-position: center;
   background-size: contain;
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: pointer;
   transition: transform 0.1s ease;
-}
-#section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container .controls button[data-dir=up] {
-  grid-area: up;
-}
-#section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container .controls button[data-dir=down] {
-  grid-area: down;
-}
-#section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container .controls button[data-dir=left] {
-  grid-area: left;
-}
-#section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container .controls button[data-dir=right] {
-  grid-area: right;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 #section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container .controls button:active {
+  transform: scale(0.85);
+}
+#section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container .controls button:hover {
   transform: scale(0.85);
 }
 #section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container .controls button:nth-child(1) {
   grid-area: up;
 }
 #section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container .controls button img {
-  width: calc(100% - 30px);
+  width: 70%;
+  /* Adjust image width inside the button */
   height: auto;
   -o-object-fit: contain;
      object-fit: contain;
-  pointer-events: auto;
-  cursor: pointer;
-  pointer-events: auto;
-  /* click goes to button */
 }
 #section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container button[data-dir=down] img {
-  width: 80px;
+  width: 85px;
 }
 #section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container button[data-dir=up] img {
-  width: 80px;
+  width: 85px;
+}
+#section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container .controls .middle .left img,
+#section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container .controls .middle .right img {
+  width: 85px;
 }
 #section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container .controls .middle {
-  display: contents;
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
 }
 #section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container .controls .middle button:nth-child(1) {
   grid-area: left;

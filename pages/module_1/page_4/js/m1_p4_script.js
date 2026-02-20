@@ -363,7 +363,8 @@ function initSnakeGame() {
      CONTROLS
   ========================= */
   const mount = document.body;
-  const controls = createElement("div", "controls", mount);
+  const outerContainer = createElement("div", "outer-container", mount);
+  const controls = createElement("div", "controls", outerContainer);
 
   function createButton(dir, parent = controls) {
     const btn = createElement("button", null, parent);
@@ -571,7 +572,7 @@ function initSnakeGame() {
     return start + (end - start) * t;
   }
 
-function drawSnake() {
+  function drawSnake() {
     if (!Array.isArray(snake) || snake.length === 0) return;
 
     let t = 1;
@@ -1127,7 +1128,7 @@ function drawSnake() {
 
             setTimeout(function () {
               $(".animations").removeClass("show");
-              $(".greetingsPop").css({ visibility: "visible", opacity: "1" });
+              // $(".greetingsPop").css({ visibility: "visible", opacity: "1" });
             }, 2500);
 
             $(".inst").html(
@@ -1835,12 +1836,11 @@ function stayPage() {
   if (typeof resumeSimulationAudio === 'function') {
     resumeSimulationAudio();
   }
-  if (window.stopIdleSoundNow) {
-    // window.stopIdleSoundNow();
-    window.startIdleTimer();
+
+  if(gameStarted) {
+    window.enableSnakeControls();
+    window.enableIdleStart();
   }
-
-
   $("#home-popup").hide();
 }
 
@@ -2083,7 +2083,8 @@ function showEndAnimations() {
     // Logic: Show popup 2 seconds INTO the final audio
     $audio.on("timeupdate", function () {
       // Using 'this' refers to the audio DOM element
-      if (this.currentTime > 2) {
+      $(".greetingsPop").css({ visibility: "hidden", opacity: "1" });
+      if (this.currentTime > 2.5) {
         // Trigger Visuals
         $(".greetingsPop").css({ visibility: "hidden", opacity: "0" });
         $(".popup").css({ visibility: "visible", opacity: "1", display: "flex" });

@@ -495,6 +495,7 @@ $bg-position: -120px -120px, 0 0, 20px 50px, 25px 55px, 50px 125px;*/
   height: 150px;
   /* Set exact height */
   display: flex;
+  margin-right: 20px;
   justify-content: center;
   align-items: center;
   flex-direction: column;
@@ -505,7 +506,6 @@ $bg-position: -120px -120px, 0 0, 20px 50px, 25px 55px, 50px 125px;*/
   /* Circular shape */
   background-color: transparent;
   position: relative;
-  margin: 0 auto;
   /* Center the control box */
   z-index: 2;
 }

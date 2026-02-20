@@ -583,6 +583,7 @@
 									height: 150px;
 									/* Set exact height */
 									display: flex;
+									margin-right:20px;
 									justify-content: center;
 									align-items: center;
 									flex-direction: column;
@@ -593,7 +594,7 @@
 									/* Circular shape */
 									background-color: transparent;
 									position: relative;
-									margin: 0 auto;
+									// margin: 0 auto;
 									/* Center the control box */
 									z-index: 2;
 								}

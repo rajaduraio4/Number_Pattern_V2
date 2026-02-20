@@ -23,6 +23,8 @@ _popTweenTimeline = null;
 var lastPatternId = null;
 var _isSimulationPaused = false;
 var gameStarted = false;
+var isAudioPlaying = false;
+var allowIdleAfterAudio = true;
 
 var _audioIndex = 0;
 _videoId = null;
@@ -93,7 +95,8 @@ function addSectionData() {
     if (sectionCnt == 1) {
 
       playBtnSounds(_pageData.sections[sectionCnt - 1].content.replayAudios[0], function () {
-
+        $("#wrapTextaudio_0").addClass("paused");
+        $("#wrapTextaudio_1").addClass("playing");
         // This runs when Audio 1 ends
         $('.inst p:first-child').hide();
         $('p:nth-child(2)').show();
@@ -102,8 +105,10 @@ function addSectionData() {
           // This runs when Audio 2 ends
           gameStarted = true;
           resetSimulationAudio();
-          $(".wrapTextaudio").addClass("paused");
-          window.enableCaterpillarMovement();
+          isAudioPlaying = false;
+          $(".wrapTextaudio").removeClass("playing").addClass("paused")
+          // $(".wrapTextaudio").addClass("paused");
+          window.enableCaterpillarMovement();          
         });
 
       });
@@ -198,8 +203,8 @@ function addSectionData() {
         if (window.stopSnakeIdle) {
           window.stopSnakeIdle();
         }
+        $(".playPause").hide();
         jumtoPage(2)
-
       });
 
       // $(".flipTextAudio").on("click", replayLastAudio);
@@ -244,6 +249,9 @@ function initSnakeGameAtMount(mountEl) {
 
 
 function initCaterpillarGame() {
+
+  const BOARD_PADDING = 20; // space around grid (important)
+  const MAX_TILE_SIZE = 60;
   /* =========================
      DOM CREATION
   ========================= */
@@ -326,21 +334,36 @@ function initCaterpillarGame() {
   let pendingMove = null;
 
   function idleStartTimer() {
+
+    // console.log("zzzzzzz", isAudioPlaying);
+
+    // ❌ If audio playing → do NOT start idle timer
+    if (isAudioPlaying) {
+      return;
+    }
+
+    // Reset idle state
+    stopIdleSoundNow();
+    isIdle = false;
+
+    // Clear previous timer
     if (idleTimer) {
       clearTimeout(idleTimer);
       idleTimer = null;
     }
-    stopIdleSoundNow();
-    isIdle = false;
 
-    if (isGameActive && !isGameEnded) {
+    // Only start idle when game has actually started
+    if (gameStarted && isGameActive && !isGameEnded && allowIdleAfterAudio) {
       idleTimer = setTimeout(triggerIdleState, IDLE_DURATION);
     }
   }
 
   function idleStopTimer() {
-    clearTimeout(idleTimer);
-    idleTimer = null;
+    if (idleTimer) {
+      clearTimeout(idleTimer);
+      idleTimer = null;
+    }
+
     stopIdleSoundNow();
     isIdle = false;
   }
@@ -348,7 +371,8 @@ function initCaterpillarGame() {
   /* =========================
      CONTROLS DOM
   ========================= */
-  const controls = createElement("div", "controls", app);
+  const mount = document.body;
+  const controls = createElement("div", "controls", mount);
 
   function createButton(dir, parent = controls) {
     const btn = createElement("button", null, parent);
@@ -450,12 +474,13 @@ function initCaterpillarGame() {
      CANVAS HELPERS
   ========================= */
   function resizeCanvas() {
+
     canvas.style.width = "100%";
     canvas.style.height = "100%";
 
     const rect = gameWrapper.getBoundingClientRect();
 
-    if (rect.width === 0 || rect.height === 0) {
+    if (!rect.width || !rect.height) {
       requestAnimationFrame(resizeCanvas);
       return;
     }
@@ -468,20 +493,40 @@ function initCaterpillarGame() {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.scale(dpr, dpr);
 
-    // Re-enable high-quality rendering after scaling
     ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
+    ctx.imageSmoothingQuality = "high";
 
     const logicalWidth = rect.width;
     const logicalHeight = rect.height;
 
-    const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement;
-    const paddingMultiplier = isFullscreen ? 1.5 : 1.2;
+    /* =========================
+       FIXED GRID SIZE
+    ========================= */
 
-    tileSize = Math.min(logicalWidth, logicalHeight) / (BASE_TILE_COUNT + paddingMultiplier);
+    tileCountX = 28;
+    tileCountY = 14;
 
-    tileCountX = Math.ceil(logicalWidth / tileSize);
-    tileCountY = Math.ceil(logicalHeight / tileSize);
+    /* =========================
+       SAFE PADDING AREA
+    ========================= */
+
+    const padding = 30;   // space around board
+
+    const availableWidth = logicalWidth - padding * 2;
+    const availableHeight = logicalHeight - padding * 2;
+
+    /* =========================
+       TILE SIZE FIT GUARANTEE
+    ========================= */
+
+    const sizeX = availableWidth / tileCountX;
+    const sizeY = availableHeight / tileCountY;
+
+    tileSize = Math.min(sizeX, sizeY);
+
+    /* =========================
+       CENTER GRID
+    ========================= */
 
     const usedWidth = tileCountX * tileSize;
     const usedHeight = tileCountY * tileSize;
@@ -489,10 +534,12 @@ function initCaterpillarGame() {
     gridOffsetX = (logicalWidth - usedWidth) / 2;
     gridOffsetY = (logicalHeight - usedHeight) / 2;
 
-    if (!isGameActive && snake.length > 0) {
-      render();
-    }
+    render();
   }
+
+
+
+
 
   function clearCanvas() {
     ctx.save();
@@ -502,32 +549,38 @@ function initCaterpillarGame() {
   }
 
   function drawGrid() {
+
     ctx.save();
+    ctx.fillStyle = "#b0b0b0";
+
     const radius = 3;
-    const color = "#b0b0b0";
-    ctx.fillStyle = color;
-    for (let y = 0; y <= tileCountY; y++) {
-      for (let x = 0; x <= tileCountX; x++) {
-        const px = gridOffsetX + (x * tileSize) - (tileSize / 2);
-        const py = gridOffsetY + (y * tileSize) - (tileSize / 2);
+
+    for (let y = 0; y < tileCountY; y++) {
+      for (let x = 0; x < tileCountX; x++) {
+
+        const cx = gridOffsetX + x * tileSize;
+        const cy = gridOffsetY + y * tileSize;
+
         ctx.beginPath();
-        ctx.arc(px + tileSize / 2, py + tileSize / 2, radius, 0, Math.PI * 2);
+        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
         ctx.fill();
       }
     }
+
     ctx.restore();
   }
+
 
   // ✅ FIXED: Improved text rendering with better contrast and font weight
   function drawText(text, x, y, scale = 1) {
     ctx.save();
     const fontSize = tileSize * 0.5 * scale;
-    ctx.font = `400 ${fontSize}px Alphakind`; // Changed to 900 for extra bold
+    ctx.font = `Normal ${fontSize}px Alphakind`; // Changed to 900 for extra bold
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
     // ✅ Thicker white outline for better readability
-    ctx.strokeStyle = "#FFFFFF";
+    ctx.strokeStyle = "#ffffff00";
     ctx.lineWidth = Math.max(6, fontSize * 0.2); // Increased outline thickness
     ctx.lineJoin = "round";
     ctx.miterLimit = 2;
@@ -576,10 +629,11 @@ function initCaterpillarGame() {
       const animX = lerp(prev.x, curr.x, t);
       const animY = lerp(prev.y, curr.y, t);
 
-      let x = gridOffsetX + (animX * tileSize);
-      let y = gridOffsetY + (animY * tileSize);
-      const cx = x + tileSize / 2;
-      const cy = y + tileSize / 2;
+      let x = gridOffsetX + (animX * tileSize) + tileSize / 2;
+      let y = gridOffsetY + (animY * tileSize) + tileSize / 2;
+
+      const cx = x;
+      const cy = y;
 
       // --- HEAD DRAWING ---
       if (i === 0) {
@@ -676,7 +730,7 @@ function initCaterpillarGame() {
 
       if (scale > 0.5) {
         ctx.fillStyle = "#000";
-        ctx.font = `400 ${tileSize * 0.45 * scale}px Alphakind`;
+        ctx.font = `Normal ${tileSize * 0.45 * scale}px Alphakind`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText(f.value, cx, cy);
@@ -725,7 +779,7 @@ function initCaterpillarGame() {
       ctx.stroke();
 
       ctx.fillStyle = "#000";
-      ctx.font = `bold ${tileSize * 0.45}px Alphakind`;
+      ctx.font = `Normal ${tileSize * 0.45}px Alphakind`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(wrongFoodData.value, cx, cy);
@@ -768,7 +822,12 @@ function initCaterpillarGame() {
     const newY = head.y + dir.y;
 
     if (!canMoveToTile(newX, newY)) return;
-    if (newX < 0 || newX >= tileCountX || newY < 0 || newY >= tileCountY) return;
+    if (
+      newX < 0 ||
+      newY < 0 ||
+      newX >= tileCountX - 1 ||
+      newY >= tileCountY - 1
+    ) return;
 
     const newHead = { x: newX, y: newY };
 
@@ -797,8 +856,13 @@ function initCaterpillarGame() {
 
       isGameActive = false;
 
-      $(".wrapTextaudio").prop("disabled", true);
-      playBtnSounds(_pageData.sections[sectionCnt - 1].correctAudio);
+      // $(".wrapTextaudio").prop("disabled", true);
+
+      playBtnSounds(_pageData.sections[sectionCnt - 1].correctAudio, function () {
+        isAudioPlaying = false;
+        console.log("Correct Audio ended");
+      });
+
       $(".wrapTextaudio").each(function () {
         if ($(this).hasClass("playing")) {
           $(this).removeClass("playing").addClass("paused");
@@ -815,7 +879,7 @@ function initCaterpillarGame() {
 
         let finalSequenceCompleted = false;
 
-        $(".wrapTextaudio").prop("disabled", true);
+        // $(".wrapTextaudio").prop("disabled", true);
         audioEnd(function () {
           shouldDrawVictoryLine = true;
 
@@ -845,7 +909,7 @@ function initCaterpillarGame() {
           foodsSpawned = true;
           spawnFoods();
           isGameActive = true;
-          $(".wrapTextaudio").prop("disabled", false);
+          // $(".wrapTextaudio").prop("disabled", false);
         }
       });
 
@@ -870,13 +934,17 @@ function initCaterpillarGame() {
 
       foods = foods.filter(f => f !== hitFood);
 
-      $(".wrapTextaudio").prop("disabled", true);
+      // $(".wrapTextaudio").prop("disabled", true);
       $(".wrapTextaudio").each(function () {
         if ($(this).hasClass("playing")) {
           $(this).removeClass("playing").addClass("paused");
         }
       });
-      playBtnSounds(_pageData.sections[sectionCnt - 1].wrongAudio);
+
+      playBtnSounds(_pageData.sections[sectionCnt - 1].wrongAudio, function () {
+        isAudioPlaying = false;
+      });
+
       updateText(_pageData.sections[sectionCnt - 1].content.wrongFeedback.text, _pageData.sections[sectionCnt - 1].content.wrongFeedback.audioSrc);
       isGameActive = false;
 
@@ -884,7 +952,7 @@ function initCaterpillarGame() {
 
       audioEnd(function () {
         inCorrectFood();
-        $(".wrapTextaudio").prop("disabled", false);
+        // $(".wrapTextaudio").prop("disabled", false);
         isGameActive = true;
       });
       return;
@@ -900,11 +968,11 @@ function initCaterpillarGame() {
     const polygon = getPolygonPoints(rect.width, rect.height);
 
     ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(polygon[0][0], polygon[0][1]);
-    for (let i = 1; i < polygon.length; i++) ctx.lineTo(polygon[i][0], polygon[i][1]);
-    ctx.closePath();
-    ctx.clip();
+    // ctx.beginPath();
+    // ctx.moveTo(polygon[0][0], polygon[0][1]);
+    // for (let i = 1; i < polygon.length; i++) ctx.lineTo(polygon[i][0], polygon[i][1]);
+    // ctx.closePath();
+    // ctx.clip();
 
     drawGrid();
     drawFood();
@@ -964,8 +1032,10 @@ function initCaterpillarGame() {
      POLYGON LOGIC
   ========================= */
   const clipPolygon = [
-    [0, 15], [0, 0], [15, 0], [85, 0], [100, 0], [100, 15],
-    [100, 65], [82, 65], [82, 100], [15, 100], [0, 100], [0, 85]
+    [0, 0],
+    [100, 0],
+    [100, 100],
+    [0, 100]
   ];
 
   function getPolygonPoints() {
@@ -974,6 +1044,7 @@ function initCaterpillarGame() {
     const h = rect.height;
     return clipPolygon.map(([px, py]) => [px / 100 * w, py / 100 * h]);
   }
+
 
   function isPointInPolygon(x, y, polygon) {
     let inside = false;
@@ -989,13 +1060,18 @@ function initCaterpillarGame() {
 
   function canMoveToTile(tileX, tileY) {
     const polygon = getPolygonPoints();
-    const corners = [
-      { cx: gridOffsetX + tileX * tileSize, cy: gridOffsetY + tileY * tileSize },
-      { cx: gridOffsetX + (tileX + 1) * tileSize, cy: gridOffsetY + tileY * tileSize },
-      { cx: gridOffsetX + tileX * tileSize, cy: gridOffsetY + (tileY + 1) * tileSize },
-      { cx: gridOffsetX + (tileX + 1) * tileSize, cy: gridOffsetY + (tileY + 1) * tileSize }
-    ];
-    return corners.every(c => isPointInPolygon(c.cx, c.cy, polygon));
+
+    const cx = gridOffsetX + tileX * tileSize + tileSize / 2;
+    const cy = gridOffsetY + tileY * tileSize + tileSize / 2;
+
+    const margin = tileSize * 0.25;
+
+    return isPointInPolygon(cx + margin, cy + margin, polygon) &&
+      isPointInPolygon(cx - margin, cy + margin, polygon) &&
+      isPointInPolygon(cx + margin, cy - margin, polygon) &&
+      isPointInPolygon(cx - margin, cy - margin, polygon);
+
+    return isPointInPolygon(cx, cy, polygon);
   }
 
   /* =========================
@@ -1080,6 +1156,8 @@ function initCaterpillarGame() {
       { ...correctPos, value: nextValue, correct: true, spawnTime: now },
       { ...wrongPos, value: wrongValue, correct: false, spawnTime: now }
     ];
+
+    console.log("foods spwannnn");    
   }
 
   function startGame() {
@@ -1103,7 +1181,7 @@ function initCaterpillarGame() {
   }
 
   function inCorrectFood() {
-    $(".wrapTextaudio").prop("disabled", false);
+    // $(".wrapTextaudio").prop("disabled", false);
     if (isGameEnded) return;
     spawnFoods();
     render();
@@ -1132,10 +1210,10 @@ function initCaterpillarGame() {
   function initSnake(pattern) {
     numberSequence = [];
     const body = [
-      { x: 5, y: 5 },  // ✅ Head matches snake
+      { x: 6, y: 5 },  // ✅ Head matches snake
+      { x: 5, y: 5 },
       { x: 4, y: 5 },
       { x: 3, y: 5 },
-      { x: 2, y: 5 },
       { x: 2, y: 5 }   // ✅ Tail has margin
     ];
     prevSnake = body.map(b => ({ ...b }));
@@ -1180,8 +1258,9 @@ function initCaterpillarGame() {
   window.enableCaterpillarMovement = function () {
     console.log("Caterpillar inputs unlocked");
     isGameActive = true;
+    gameStarted = true;     // <-- ADD THIS
     idleStartTimer();
-  };
+  };  
 
   document.addEventListener("keydown", e => {
     if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].indexOf(e.code) > -1) {
@@ -1258,6 +1337,7 @@ function initCaterpillarGame() {
     console.log("Caterpillar enabled");
     isGameActive = true;
     isGameEnded = false;
+    gameStarted = true;
     idleStartTimer();
   };
 
@@ -1302,6 +1382,21 @@ function initCaterpillarGame() {
      ✅ NEW: IDLE TIMER CONTROLS
   ========================= */
 
+  function setupGlobalActivityListeners() {
+    document.addEventListener("mousemove", resetIdleTimer, { passive: true });
+    document.addEventListener("mousedown", resetIdleTimer, { passive: true });
+    document.addEventListener("click", resetIdleTimer, { passive: true });
+    document.addEventListener("keydown", resetIdleTimer, { passive: true });
+    document.addEventListener("keypress", resetIdleTimer, { passive: true });
+    document.addEventListener("touchstart", resetIdleTimer, { passive: true });
+    document.addEventListener("touchmove", resetIdleTimer, { passive: true });
+    document.addEventListener("scroll", resetIdleTimer, { passive: true });
+    document.addEventListener("pointerdown", resetIdleTimer, { passive: true });
+    document.addEventListener("pointermove", resetIdleTimer, { passive: true });
+  }
+
+  setupGlobalActivityListeners();
+
   // Start idle timer - will trigger idle state after IDLE_DURATION
   window.startIdleTimer = function () {
     idleStartTimer();
@@ -1313,15 +1408,110 @@ function initCaterpillarGame() {
     idleStopTimer();
     console.log("Idle timer stopped");
   };
+  
+  const simAudio = document.getElementById("simulationAudio");
+
+  simAudio.addEventListener("ended", () => {
+
+    console.log("Correreradsf EDDDDDD 0", allowIdleAfterAudio, isGameActive);
+
+    isAudioPlaying = false;
+    // Do NOT restart idle timer if we're in final screen or win animations
+    if (!allowIdleAfterAudio) return;
+
+
+    // Do NOT restart idle if game not active
+    // if (!isGameActive) return;
+
+    console.log("Correreradsf EDDDDDD");
+
+    // Restart idle only if user is not interacting
+    enableTimer();
+  });
+
+
+  const SNAKE_PAGE = 4;
+
+  window.addEventListener("audioPlayingChanged", (e) => {
+
+    // console.log("working", gameStarted,e.detail.value);
+    // Run only if this is the active page
+    if (_controller.pageCnt !== SNAKE_PAGE) return;
+
+
+    if (!gameStarted) return;
+
+
+    const popupOpen = e.detail.value;
+    console.log("Dispatched", popupOpen);
+
+    if (popupOpen) {
+      console.log("Popup opened -> stopping idle");
+      disableTimer();
+
+      // 🔥 prevent idle from restarting until popup closes
+      allowIdleAfterAudio = false;
+    } else {
+      console.log("Popup closed -> resuming idle if allowed", !isAudioPlaying, isGameActive);
+      enableTimer();
+    }
+  });
+
+
+
 }
 
+
+function disableTimer() {
+  window.disableCaterpillarControls();
+  // window.stopIdleTimer();
+}
+
+function enableTimer() {
+  if (gameStarted) {
+    window.enableCaterpillarControls();
+
+    // window.startIdleTimer();
+  }
+}
 
 
 // Simulation play and pause
 
 
+// function playPauseSimulation(btn) {
+//   playClickThen();
+//   var audio = document.getElementById("simulationAudio");
+//   var hasAudio = !!audio.getAttribute("src");
+
+//   _isSimulationPaused = !_isSimulationPaused;
+
+//   if (_isSimulationPaused) {
+//     // Pause state
+//     if (hasAudio) {
+//       audio.pause();
+//     }
+//     disableAll();
+//     btn.classList.remove("play");
+//     btn.classList.add("pause");
+//     btn.dataset.tooltip = "Play";
+//   } else {
+//     // Play state
+//     if (hasAudio) {
+//       audio.play().catch(() => { });
+//     }
+//     enableAll();
+//     btn.classList.remove("pause");
+//     btn.classList.add("play");
+//     btn.dataset.tooltip = "Pause";
+//   }
+
+// }
+
+
 function playPauseSimulation(btn) {
   playClickThen();
+  console.log(isAudioPlaying, "audio palying");
   var audio = document.getElementById("simulationAudio");
   var hasAudio = !!audio.getAttribute("src");
 
@@ -1329,7 +1519,7 @@ function playPauseSimulation(btn) {
 
   if (_isSimulationPaused) {
     // Pause state
-    if (hasAudio) {
+    if (hasAudio && isAudioPlaying) {
       audio.pause();
     }
     disableAll();
@@ -1338,16 +1528,18 @@ function playPauseSimulation(btn) {
     btn.dataset.tooltip = "Play";
   } else {
     // Play state
-    if (hasAudio) {
+    // Only resume if we still have an active (not-ended) clip
+    if (hasAudio && isAudioPlaying) {
       audio.play().catch(() => { });
     }
+    // If not playing anymore (ended), do NOT start it again
     enableAll();
     btn.classList.remove("pause");
     btn.classList.add("play");
     btn.dataset.tooltip = "Pause";
   }
-
 }
+
 
 function enableAll() {
   playClickThen();
@@ -1400,7 +1592,7 @@ function updateText(txt, audio) {
     <p tabindex="0" aria-label="${removeTags(txt)}">
       ${txt}
       <button 
-        class="wrapTextaudio paused"
+        class="wrapTextaudio playing"
         onclick="replayLastAudio(this, '${audio}')">
       </button>
     </p>
@@ -1437,14 +1629,18 @@ function stayPage() {
   }
 
   $("#home-popup").hide();
+  enableTimer();
 }
 
 function leavePage() {
   playClickThen();
 
+  $(".playPause").hide();
+
   if (window.stopSnakeIdle) {
     window.stopSnakeIdle();
   }
+
 
   var audio = document.getElementById("simulationAudio");
   if (audio) {
@@ -1467,6 +1663,7 @@ function leavePage() {
 function jumtoPage(pageNo) {
   playClickThen();
 
+
   _controller.pageCnt = pageNo;
   console.log(pageNo, "pageNumber");
 
@@ -1477,47 +1674,47 @@ function jumtoPage(pageNo) {
 
 var activeAudio = null;
 
+
 function playBtnSounds(soundFile, callback) {
   const audio = document.getElementById("simulationAudio");
-
   audio.muted = false;
 
   if (!soundFile) {
-    console.warn("Audio source missing!");
-    // If audio is missing but a callback exists, we should probably run it 
-    // so the flow doesn't hang, or just return.
     if (callback) callback();
     return;
   }
 
-  // 1. CRITICAL: Clear any existing onended triggers from previous plays
-  audio.onended = null;
-
-  // Stop previous audio if it exists
+  // Stop previous
   if (activeAudio && !activeAudio.paused) {
     activeAudio.pause();
   }
 
   audio.loop = false;
+
+  // Attach ended BEFORE play; use addEventListener to avoid overwrite issues
+  const onEnded = () => {
+    audio.removeEventListener('ended', onEnded);
+    if (callback) callback();
+  };
+  audio.addEventListener('ended', onEnded);
+
+  // Make sure we can replay the same src from start
+  const same = audio.src === soundFile || audio.currentSrc === soundFile;
   audio.src = soundFile;
-  audio.load();
-
-  activeAudio = audio;
-
-  // 2. If a callback is provided, attach it
-  if (typeof callback === "function") {
-    audio.onended = () => {
-      // Remove self to prevent future loops
-      audio.onended = null;
-      callback();
-    };
+  if (same) {
+    try { audio.currentTime = 0; } catch (e) { }
+  } else {
+    try { audio.load(); } catch (e) { }
   }
 
-  console.log("Playing:", soundFile);
+  activeAudio = audio;
+  isAudioPlaying = true;
+
   audio.play().catch((err) => {
     console.warn("Audio play error:", err);
-    // Optional: If play fails, should we trigger callback?
-    // if (callback) callback(); 
+    // Fallback to keep flow moving
+    audio.removeEventListener('ended', onEnded);
+    if (callback) callback();
   });
 }
 
@@ -1707,50 +1904,34 @@ function showEndAnimations() {
 // }
 
 
-function replayLastAudio(btnElement) {
+
+function replayLastAudio(btnElement, audioSrc) {
   playClickThen();
 
   const courseAudio = document.getElementById("courseAudio");
   const simulationAudio = document.getElementById("simulationAudio");
 
-  const index = parseInt(btnElement.id.split("_")[1]);
-  const replayAudios =
-    _pageData.sections[sectionCnt - 1].content.replayAudios;
-
   let activeAudio = null;
 
-  console.log("replayyyy");
-  // --------------------------------------------------
-  // 1️⃣ Detect active playing audio
-  // --------------------------------------------------
   if (courseAudio && !courseAudio.paused && !courseAudio.ended) {
     activeAudio = courseAudio;
-  }
-  else if (simulationAudio && !simulationAudio.paused && !simulationAudio.ended) {
+  } else if (simulationAudio && !simulationAudio.paused && !simulationAudio.ended) {
     activeAudio = simulationAudio;
   }
 
-  // --------------------------------------------------
-  // 2️⃣ If something is playing → just toggle mute
-  // --------------------------------------------------
+  // If something playing → toggle mute
   if (activeAudio) {
     activeAudio.muted = !activeAudio.muted;
     updateButtonUI(btnElement, !activeAudio.muted);
     return;
   }
 
-  // --------------------------------------------------
-  // 3️⃣ Nothing playing → call playBtnSounds()
-  // --------------------------------------------------
-  if (replayAudios && replayAudios[index]) {
-
-    console.log("Replay audioso");
-    playBtnSounds(replayAudios[index]);
-
+  // Nothing playing → play passed audio
+  if (audioSrc) {
+    playBtnSounds(audioSrc);
     resetAllButtons();
     updateButtonUI(btnElement, true);
 
-    // Optional: reset UI when replay ends
     if (simulationAudio) {
       simulationAudio.onended = function () {
         updateButtonUI(btnElement, false);
@@ -1758,6 +1939,7 @@ function replayLastAudio(btnElement) {
     }
   }
 }
+
 
 function stopAllAudios() {
   const courseAudio = document.getElementById("courseAudio");

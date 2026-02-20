@@ -158,12 +158,12 @@ $bg-position: -120px -120px, 0 0, 20px 50px, 25px 55px, 50px 125px;*/
   background-repeat: no-repeat !important;
   background-position: center !important;
 }
-#section-1 .content-holder .col-left .content .content-bg .content-style .inst .wrapTextaudio.playing {
-  background: url(../images/music.png) no-repeat;
-  background-size: contain;
-}
 #section-1 .content-holder .col-left .content .content-bg .content-style .inst .wrapTextaudio.paused {
   background: url(../images/pause.png) no-repeat;
+  background-size: contain;
+}
+#section-1 .content-holder .col-left .content .content-bg .content-style .inst .wrapTextaudio.playing {
+  background: url(../images/music.png) no-repeat;
   background-size: contain;
 }
 #section-1 .content-holder .col-left .content .content-bg .content-style .inst #inst_1,

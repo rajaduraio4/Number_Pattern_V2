@@ -21,6 +21,7 @@ var _videoTagReplaced = false;
 var _menuOpenFirstTime = false;
 var _navBtnHeight = 50;
 var _navBtnMargin = 4;
+var _popupOpen = false;
 var _transscriptOpen = false;
 var _menuOpen = false;
 var _navbarUiElementsOpen = false;
@@ -2634,11 +2635,10 @@ function goHome(pageCount) {
         console.log("Leaving simulation → show popup");
 
         // Pause simulation audio using existing function
-        pauseSimulationAudio();
-        $(".playPause").hide();
-
+        pauseSimulationAudio();        
         $(".popup-home").css("display", "flex");
         // store where user wanted to go
+
         window.__nextPage = pageCount;
         return;
     }
@@ -2689,11 +2689,23 @@ function getSimulationAudio() {
     return document.getElementById("simulationAudio");
 }
 
+function setPopupOpenState(state) {
+  _controller._popupOpen = state;
+
+  // Dispatch event EACH TIME state changes
+  window.dispatchEvent(
+    new CustomEvent("audioPlayingChanged", { detail: { value: state } })
+  );
+}
+
+
 function pauseSimulationAudio() {
     var pageDetail = _menuView.getPageDetails(_controller.pageCnt);
     var _pageType = pageDetail.type;
     const audio = getSimulationAudio();
     if (!audio) return;
+    
+    setPopupOpenState(true);
 
     simulationWasPlaying = !audio.paused;
     if (simulationWasPlaying) {
@@ -2717,18 +2729,19 @@ function resumeSimulationAudio() {
 }
 
 function closeIntroPop(selector) {
+    playClickThen();
     console.log(selector, "selector")
     if (!selector.startsWith('#') && !selector.startsWith('.')) {
         selector = '#' + selector;
     }
 
+    setPopupOpenState(false);
     // Pause popup audio
     const audio = document.getElementById('popupAudio');
     if (audio) {
         audio.pause();
         audio.currentTime = 0;
     }
-
     // Resume simulation audio (will check if it was playing before)
     resumeSimulationAudio();
 

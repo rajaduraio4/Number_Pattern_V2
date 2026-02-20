@@ -23,6 +23,9 @@ _popTweenTimeline = null;
 var lastPatternId = null;
 var _isSimulationPaused = false;
 var gameStarted = false;
+var isAudioPlaying = false;
+
+var allowIdleAfterAudio = true;
 
 var _audioIndex = 0;
 _videoId = null;
@@ -88,18 +91,23 @@ function addSectionData() {
       playBtnSounds(_pageData.sections[sectionCnt - 1].content.replayAudios[0], function () {
 
         // This runs when Audio 1 ends
-        console.log("Audio 1 ended. Starting Audio 2...");
+        //  console.log("Audio 1 ended. Starting Audio 2...");
+        $("#wrapTextaudio_0").addClass("paused");
+        $("#wrapTextaudio_1").addClass("playing");
         $('.inst p:first-child').hide();
         $('p:nth-child(2)').show();
 
         playBtnSounds(_pageData.sections[sectionCnt - 1].content.replayAudios[1], function () {
           // This runs when Audio 2 ends
-          console.log("Audio 2 ended. Sequence complete.");
+          //console.log("Audio 2 ended. Sequence complete.");
           resetSimulationAudio();
-          $(".wrapTextaudio").addClass("paused");
+
+          $(".wrapTextaudio").removeClass("playing").addClass("paused")
           window.enableCaterpillarMovement();
           gameStarted = true;
+          isAudioPlaying = false;
           window.enableSnakeControls();
+          window.enableIdleStart();
         });
 
       });
@@ -573,25 +581,34 @@ function initSnakeGame() {
           let drawW, drawH;
 
           if (shape === 'rectangle') {
-
             drawW = tileSize * 1.0;
             drawH = tileSize * 0.72;
 
-            // Detect direction
+            // ✅ Compute direction using previous segment
+            const prevSeg = snake[i - 1] ?? seg;
+            const dx = prevSeg.x - seg.x;
+            const dy = prevSeg.y - seg.y;
+
+            // ✅ Orientation + rotation
             const isVertical = Math.abs(dy) > Math.abs(dx);
+            const rotation = Math.atan2(dy, dx);
 
-            // When vertical, push rectangle slightly so edges meet circle
+            // ✅ Transform to segment center and align
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(rotation);
+
+            // Slight nudge when vertical so edges meet the circle nicely
             const adjust = tileSize * 0.14;
-
             const offsetX = 0;
             const offsetY = isVertical ? -adjust : 0;
 
             ctx.drawImage(
               shapeImages[shape],
-              -drawW / 2 + offsetX,
-              -drawH / 2 + offsetY,
-              drawW,
-              drawH
+              Math.round(-drawW / 2 + offsetX),
+              Math.round(-drawH / 2 + offsetY),
+              Math.round(drawW),
+              Math.round(drawH)
             );
 
             ctx.restore();
@@ -758,16 +775,17 @@ function initSnakeGame() {
 
       if (!shapeImages[f.shape]) return;
 
-      let drawW, drawH;
+
+
 
       if (f.shape === 'rectangle') {
-        drawW = tileSize * 1.0;
-        drawH = tileSize * 0.85;
+        drawW = tileSize * 1.02;
+        drawH = tileSize * 0.72;
       } else if (f.shape === 'square') {
-        drawW = tileSize * 0.8;
-        drawH = tileSize * 0.8;
+        drawW = tileSize * 0.98;
+        drawH = tileSize * 0.98;
       } else {
-        const circleSize = tileSize * 0.85;
+        const circleSize = tileSize * 1.04;
         drawW = circleSize;
         drawH = circleSize;
       }
@@ -815,15 +833,17 @@ function initSnakeGame() {
       const cx = gridOffsetX + wrongFoodData.x * tileSize + tileSize / 2 + offsetX;
       const cy = gridOffsetY + wrongFoodData.y * tileSize + tileSize / 2 + offsetY;
 
+
+
       let drawW, drawH;
       if (wrongFoodData.shape === 'rectangle') {
-        drawW = tileSize * 1.0;
-        drawH = tileSize * 0.85;
+        drawW = tileSize * 1.02;
+        drawH = tileSize * 0.72;
       } else if (wrongFoodData.shape === 'square') {
-        drawW = tileSize * 0.8;
-        drawH = tileSize * 0.8;
+        drawW = tileSize * 0.98;
+        drawH = tileSize * 0.98;
       } else {
-        const circleSize = tileSize * 0.85;
+        const circleSize = tileSize * 1.04;
         drawW = circleSize;
         drawH = circleSize;
       }
@@ -1008,7 +1028,7 @@ function initSnakeGame() {
       { ...wrongPos, shape: wrongShape, correct: false }
     ];
 
-    $(".wrapTextaudio").prop("disabled", false);
+    //$(".wrapTextaudio").prop("disabled", false);
     console.log("Foods spawned:", foods.length, "at distances:",
       Math.abs(correctPos.x - head.x) + Math.abs(correctPos.y - head.y),
       Math.abs(wrongPos.x - head.x) + Math.abs(wrongPos.y - head.y));
@@ -1077,7 +1097,7 @@ function initSnakeGame() {
             $(".inst").html(
               `<p>${_pageData.sections[sectionCnt - 1].finalText} <button class="wrapTextaudio playing" id="wrapTextaudio_2" onClick="replayLastAudio(this)"></button></p>`
             );
-            $(".wrapTextaudio").prop("disabled", false);
+            // $(".wrapTextaudio").prop("disabled", false);
 
             const audio = document.getElementById("simulationAudio");
             if (audio) {
@@ -1088,6 +1108,7 @@ function initSnakeGame() {
             }
 
             playBtnSounds(_pageData.sections[sectionCnt - 1].greatJob);
+
           });
 
           return;
@@ -1130,9 +1151,11 @@ function initSnakeGame() {
         // Remove wrong food from foods array immediately
         foods = foods.filter(f => f !== hitFood);
 
-        $(".wrapTextaudio").prop("disabled", true);
+        //$(".wrapTextaudio").prop("disabled", true);
 
-        playBtnSounds(_pageData.sections[sectionCnt - 1].wrongAudio);
+        playBtnSounds(_pageData.sections[sectionCnt - 1].wrongAudio, function () {
+          isAudioPlaying = false;
+        });
 
         $(".wrapTextaudio").each(function () {
           if ($(this).hasClass("playing")) {
@@ -1147,7 +1170,7 @@ function initSnakeGame() {
 
         audioEnd(() => {
           inCorrectFood();
-          $(".wrapTextaudio").prop("disabled", false);
+          //$(".wrapTextaudio").prop("disabled", false);
           isWrongAction = false;
           isProcessingMove = false;
         });
@@ -1232,16 +1255,19 @@ function initSnakeGame() {
   function isCorrect(callback) {
     if (typeof playBtnSounds === 'function' && typeof _pageData !== 'undefined') {
       const audioPath = _pageData.sections[sectionCnt - 1].correctAudio;
+
       $(".wrapTextaudio").each(function () {
         if ($(this).hasClass("playing")) {
-          $(".wrapTextaudio").removeClass("playing");
-          $(".wrapTextaudio").addClass("paused");
+          $(this).removeClass("playing").addClass("paused");
         }
       });
+      // $(".wrapTextaudio").prop("disabled", true);
       console.log("is correct")
-      playBtnSounds(audioPath);
+      playBtnSounds(audioPath, function () {
+        isAudioPlaying = false;
+      });
       updateText(_pageData.sections[sectionCnt - 1].content.correctFeedback.text, _pageData.sections[sectionCnt - 1].content.correctFeedback.audioSrc);
-      $(".wrapTextaudio").prop("disabled", true);
+
 
       if (callback) {
         audioEnd(callback);
@@ -1255,8 +1281,19 @@ function initSnakeGame() {
   function isCorrectFinal(callback) {
     if (typeof playBtnSounds === 'function' && typeof _pageData !== 'undefined') {
       const audioPath = _pageData.sections[sectionCnt - 1].correctAudio;
-      $(".wrapTextaudio").prop("disabled", true);
-      playBtnSounds(audioPath);
+      $(".wrapTextaudio").each(function () {
+        if ($(this).hasClass("playing")) {
+          $(this).removeClass("playing").addClass("paused");
+        }
+      });
+
+      // $(".wrapTextaudio").prop("disabled", true);
+      allowIdleAfterAudio = false;
+      playBtnSounds(audioPath, function () {
+        isAudioPlaying = false;
+        console.log("its endddddddedd");
+      });
+
       updateText(_pageData.sections[sectionCnt - 1].content.correctFeedback.text, _pageData.sections[sectionCnt - 1].content.correctFeedback.audioSrc);
       console.log("final Audio playgin")
 
@@ -1431,14 +1468,24 @@ function initSnakeGame() {
   document.addEventListener("mozfullscreenchange", resizeCanvas);
 
   function resetIdleTimer() {
-    clearTimeout(idleTimer);
-    idleTimer = null;
-    stopIdleSoundNow();
+    // Stop idle graphic/audio immediately
     if (isIdle) {
       isIdle = false;
       cancelAnimationFrame(animationFrameId);
+      stopIdleSoundNow();
       render();
     }
+
+    // Always clear existing timer
+    clearTimeout(idleTimer);
+    idleTimer = null;
+
+    // ❌ Do NOT restart if audio is playing
+    if (isAudioPlaying) {
+      return;
+    }
+
+    // Only restart timer when game active AND no audio playing
     if (isGameActive) {
       idleTimer = setTimeout(triggerIdleState, IDLE_DURATION);
     }
@@ -1461,7 +1508,12 @@ function initSnakeGame() {
 
   window.startIdleTimer = function () {
     if (!isGameActive) return;
+
     clearTimeout(idleTimer);
+
+    // Don’t start idle timer during audio
+    if (isAudioPlaying) return;
+
     idleTimer = setTimeout(triggerIdleState, IDLE_DURATION);
   };
 
@@ -1542,18 +1594,106 @@ function initSnakeGame() {
 
   // DISABLE idle system
   window.disableIdleStart = function () {
-    stopIdleTimer();
+    window.stopIdleTimer();
     console.log("Idle disabled");
   };
 
+
+  const simAudio = document.getElementById("simulationAudio");
+
+  simAudio.addEventListener("ended", () => {
+
+    if (simAudio.src !== activeAudio) {
+      return;   // ❌ Old audio ended, ignore it completely
+    }
+    isAudioPlaying = false;
+    // Do NOT restart idle timer if we're in final screen or win animations
+    if (!allowIdleAfterAudio) return;
+
+    // Do NOT restart idle if game not active
+    if (!isGameActive) return;
+
+    // Restart idle only if user is not interacting
+    window.startIdleTimer();
+  });
+
+
+  const SNAKE_PAGE = 3;
+
+  window.addEventListener("audioPlayingChanged", (e) => {
+
+    // console.log("working", gameStarted,e.detail.value);
+    // Run only if this is the active page
+    if (_controller.pageCnt !== SNAKE_PAGE) return;
+
+
+    if (!gameStarted) return;
+
+
+    const popupOpen = e.detail.value;
+    console.log("Dispatched", popupOpen);
+
+    if (popupOpen) {
+      console.log("Popup opened -> stopping idle");
+      disableTimer();
+
+      // 🔥 prevent idle from restarting until popup closes
+      allowIdleAfterAudio = false;
+    } else {
+      console.log("Popup closed -> resuming idle if allowed", !isAudioPlaying, isGameActive);      
+        enableTimer();
+    }
+  });
+
 }
 
+function disableTimer(){
+  window.disableSnakeControls();
+  window.disableIdleStart();
+}
+
+function enableTimer(){
+if (gameStarted) {
+    window.enableSnakeControls();
+    window.enableIdleStart();
+  }
+}
 
 // Simulation play and pause
 
 
+// function playPauseSimulation(btn) {
+//   playClickThen();
+//   var audio = document.getElementById("simulationAudio");
+//   var hasAudio = !!audio.getAttribute("src");
+
+//   _isSimulationPaused = !_isSimulationPaused;
+
+//   if (_isSimulationPaused) {
+//     // Pause state
+//     if (hasAudio) {
+//       audio.pause();
+//     }
+//     disableAll();
+//     btn.classList.remove("play");
+//     btn.classList.add("pause");
+//     btn.dataset.tooltip = "Play";
+//   } else {
+//     // Play state
+//     if (hasAudio) {
+//       audio.play().catch(() => { });
+//     }
+//     enableAll();
+//     btn.classList.remove("pause");
+//     btn.classList.add("play");
+//     btn.dataset.tooltip = "Pause";
+//   }
+
+// }
+
 function playPauseSimulation(btn) {
   playClickThen();
+  console.log(isAudioPlaying, "audio palying");
   var audio = document.getElementById("simulationAudio");
   var hasAudio = !!audio.getAttribute("src");
 
@@ -1561,7 +1701,7 @@ function playPauseSimulation(btn) {
 
   if (_isSimulationPaused) {
     // Pause state
-    if (hasAudio) {
+    if (hasAudio && isAudioPlaying) {
       audio.pause();
     }
     disableAll();
@@ -1570,15 +1710,16 @@ function playPauseSimulation(btn) {
     btn.dataset.tooltip = "Play";
   } else {
     // Play state
-    if (hasAudio) {
+    // Only resume if we still have an active (not-ended) clip
+    if (hasAudio && isAudioPlaying) {
       audio.play().catch(() => { });
     }
+    // If not playing anymore (ended), do NOT start it again
     enableAll();
     btn.classList.remove("pause");
     btn.classList.add("play");
     btn.dataset.tooltip = "Pause";
   }
-
 }
 
 function enableAll() {
@@ -1593,7 +1734,6 @@ function enableAll() {
     audio.muted = false;
     audio.play();
   }
-
 }
 
 
@@ -1626,7 +1766,7 @@ function updateText(txt, audio) {
     <p tabindex="0" aria-label="${removeTags(txt)}">
       ${txt}
       <button 
-        class="wrapTextaudio paused"
+        class="wrapTextaudio playing"
         onclick="replayLastAudio(this, '${audio}')">
       </button>
     </p>
@@ -1659,6 +1799,11 @@ function stayPage() {
   if (typeof resumeSimulationAudio === 'function') {
     resumeSimulationAudio();
   }
+  if (window.stopIdleSoundNow) {
+    // window.stopIdleSoundNow();
+    window.startIdleTimer();
+  }
+
 
   $("#home-popup").hide();
 }
@@ -1666,9 +1811,11 @@ function stayPage() {
 function leavePage() {
   playClickThen();
 
-  if (window.stopIdleSoundNow) {
-    window.stopIdleSoundNow();
-  }
+  window.disableSnakeControls();
+  window.disableIdleStart();
+
+  $(".playPause").hide();
+
 
   var audio = document.getElementById("simulationAudio");
   if (audio) {
@@ -1702,45 +1849,44 @@ var activeAudio = null;
 
 function playBtnSounds(soundFile, callback) {
   const audio = document.getElementById("simulationAudio");
-
   audio.muted = false;
 
   if (!soundFile) {
-    console.warn("Audio source missing!");
-    // If audio is missing but a callback exists, we should probably run it 
-    // so the flow doesn't hang, or just return.
     if (callback) callback();
     return;
   }
 
-  // 1. CRITICAL: Clear any existing onended triggers from previous plays
-  audio.onended = null;
-
-  // Stop previous audio if it exists
+  // Stop previous
   if (activeAudio && !activeAudio.paused) {
     activeAudio.pause();
   }
 
   audio.loop = false;
+
+  // Attach ended BEFORE play; use addEventListener to avoid overwrite issues
+  const onEnded = () => {
+    audio.removeEventListener('ended', onEnded);
+    if (callback) callback();
+  };
+  audio.addEventListener('ended', onEnded);
+
+  // Make sure we can replay the same src from start
+  const same = audio.src === soundFile || audio.currentSrc === soundFile;
   audio.src = soundFile;
-  audio.load();
-
-  activeAudio = audio;
-
-  // 2. If a callback is provided, attach it
-  if (typeof callback === "function") {
-    audio.onended = () => {
-      // Remove self to prevent future loops
-      audio.onended = null;
-      callback();
-    };
+  if (same) {
+    try { audio.currentTime = 0; } catch (e) { }
+  } else {
+    try { audio.load(); } catch (e) { }
   }
 
-  console.log("Playing:", soundFile);
+  activeAudio = audio;
+  isAudioPlaying = true;
+
   audio.play().catch((err) => {
     console.warn("Audio play error:", err);
-    // Optional: If play fails, should we trigger callback?
-    // if (callback) callback(); 
+    // Fallback to keep flow moving
+    audio.removeEventListener('ended', onEnded);
+    if (callback) callback();
   });
 }
 

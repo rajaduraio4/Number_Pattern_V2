@@ -148,7 +148,14 @@
 									background-repeat: no-repeat !important;
 									background-position: center !important;
 								}
+&.paused {
+									background: url(../images/pause.png) no-repeat;
+									background-size: contain;
 
+									// &:disabled {
+									// 	// background: url("../images/audio_mute_disabled.png");
+									// }
+								}
 								&.playing {
 									background: url(../images/music.png) no-repeat;
 									background-size: contain;
@@ -158,14 +165,7 @@
 									// }
 								}
 
-								&.paused {
-									background: url(../images/pause.png) no-repeat;
-									background-size: contain;
-
-									// &:disabled {
-									// 	// background: url("../images/audio_mute_disabled.png");
-									// }
-								}
+								
 							}
 
 							#inst_1,

@@ -31,10 +31,25 @@ $bg-position: -120px -120px, 0 0, 20px 50px, 25px 55px, 50px 125px;*/
   background-color: #2e2e38;
 }
 
+#section-1,
+#section-1 .content-holder,
+#section-1 .col-left,
+#section-1 .content,
+#section-1 .content-bg,
+#section-1 .content-style,
+#section-1 .body,
+#section-1 .animat-container {
+  width: 100% !important;
+  max-width: none !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  height: 100%;
+}
+
 #section-1 {
   position: relative;
   width: 100%;
-  height: 100%;
+  height: 100vh;
   display: block;
   overflow: hidden;
 }
@@ -55,7 +70,7 @@ $bg-position: -120px -120px, 0 0, 20px 50px, 25px 55px, 50px 125px;*/
   width: 100%;
   max-width: 1366px;
   height: calc(100% - 100px);
-  margin: 60px auto;
+  margin: 60px 0;
   overflow: hidden;
 }
 @media (min-width: 951px) and (orientation: landscape) and (hover: none) {
@@ -383,10 +398,8 @@ $bg-position: -120px -120px, 0 0, 20px 50px, 25px 55px, 50px 125px;*/
   align-items: center;
   font-size: 1rem;
   padding-bottom: 1%;
-  height: 100%;
+  height: calc(100% - 120px);
   width: 100%;
-  padding-left: 2%;
-  padding-right: 2%;
 }
 #section-1 .content-holder .col-left .content .content-bg .content-style > .body .animations {
   position: absolute;
@@ -402,14 +415,14 @@ $bg-position: -120px -120px, 0 0, 20px 50px, 25px 55px, 50px 125px;*/
 }
 #section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container {
   display: flex !important;
-  gap: 20px;
-  justify-content: space-evenly;
-  align-items: center;
-  height: 100%;
+  flex-direction: row;
+  align-items: stretch;
+  justify-content: stretch;
   width: 100%;
-  opacity: 1;
-  max-width: 100%;
+  height: 100%;
   position: relative;
+  gap: 0;
+  flex: 1 1 100%;
 }
 #section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container .dummy-patch {
   position: absolute;
@@ -434,26 +447,23 @@ $bg-position: -120px -120px, 0 0, 20px 50px, 25px 55px, 50px 125px;*/
   background-position: 25px 25px;
 }
 #section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container .game-container {
-  position: relative;
-  width: 100%;
-  height: calc(100% - 25px);
+  flex: 0 0 80%;
+  max-width: 80%;
+  height: 100%;
   display: flex;
   justify-content: center;
   align-items: center;
+  position: relative;
 }
 #section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container {
   /* CHANGE: remove right 200px reservation so canvas can stretch full width */
 }
 #section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container .game-wrapper {
-  position: absolute;
-  inset: 1px;
-  /* was: inset: 16px 200px 16px 16px; */
-  border-radius: 14px;
-  flex: 1 1 100%;
+  position: relative;
   width: 100%;
-  height: calc(100% - 20px);
+  height: 100%;
+  border-radius: 14px;
   background: #ffffff;
-  /* border: 2px solid #ddd; */
   overflow: hidden;
 }
 #section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container {
@@ -461,31 +471,32 @@ $bg-position: -120px -120px, 0 0, 20px 50px, 25px 55px, 50px 125px;*/
 }
 #section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container canvas {
   width: 100%;
-  max-width: 100%;
   height: 100%;
   display: block;
-  image-rendering: auto;
 }
 #section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container {
   /* Keep controls over the canvas instead of reserving layout space */
 }
 #section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container .controls {
-  position: absolute;
-  right: 80px;
-  top: calc(100% - 190px);
+  flex: 0 0 20%;
+  max-width: 20%;
+  height: 100%;
   display: grid;
-  grid-template-columns: 35px 35px 35px;
-  grid-template-rows: 35px 35px 35px;
-  grid-template-areas: ". up ." "left . right" ". down .";
-  gap: 3px;
-  /* adjust to taste */
-  width: auto;
-  height: auto;
+  place-content: center;
+  grid-template-columns: repeat(3, auto);
+  grid-template-rows: repeat(3, auto);
+  grid-template-areas: ". up ." "left center right" ". down .";
+  gap: 0px;
+  position: relative;
+  right: auto;
+  top: auto;
   z-index: 2;
 }
 #section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container .controls button {
-  width: 80px;
-  height: 80px;
+  width: clamp(70px, 6vw, 100px);
+  height: clamp(70px, 6vw, 100px);
+  background: transparent;
+  border: none;
   border-radius: 12px;
   background-color: transparent;
   background-repeat: no-repeat;
@@ -493,6 +504,18 @@ $bg-position: -120px -120px, 0 0, 20px 50px, 25px 55px, 50px 125px;*/
   background-size: contain;
   pointer-events: none;
   transition: transform 0.1s ease;
+}
+#section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container .controls button[data-dir=up] {
+  grid-area: up;
+}
+#section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container .controls button[data-dir=down] {
+  grid-area: down;
+}
+#section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container .controls button[data-dir=left] {
+  grid-area: left;
+}
+#section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container .controls button[data-dir=right] {
+  grid-area: right;
 }
 #section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container .controls button:active {
   transform: scale(0.85);

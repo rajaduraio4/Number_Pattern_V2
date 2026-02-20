@@ -2083,7 +2083,7 @@ function showEndAnimations() {
     // Logic: Show popup 2 seconds INTO the final audio
     $audio.on("timeupdate", function () {
       // Using 'this' refers to the audio DOM element
-      $(".greetingsPop").css({ visibility: "hidden", opacity: "1" });
+      $(".greetingsPop").css({ visibility: "visible", opacity: "1" });
       if (this.currentTime > 2.5) {
         // Trigger Visuals
         $(".greetingsPop").css({ visibility: "hidden", opacity: "0" });

@@ -110,11 +110,21 @@ function addSectionData() {
           window.enableIdleStart();
         });
 
+        // playBtnSounds(_pageData.sections[sectionCnt - 1].content.replayAudios[1], function () {
+        //   // This runs when Audio 2 ends
+        //   //console.log("Audio 2 ended. Sequence complete.");          
+        //   $("#wrapTextaudio_1").addClass("paused");
+        //   $("#wrapTextaudio_2").addClass("playing");
+        //   $('p:nth-child(2)').hide();
+        //   $('p:nth-child(3)').show();          
+
+        // });
+
       });
 
       let instText = '';
       for (let k = 0; k < _pageData.sections[sectionCnt - 1].iText.length; k++) {
-        instText += `<p tabindex="0" id="inst_${k + 1}" aria-label="${removeTags(_pageData.sections[sectionCnt - 1].iText[k])}">${_pageData.sections[sectionCnt - 1].iText[k]} <button class="wrapTextaudio playing" id="wrapTextaudio_${k}" onclick="replayLastAudio(this, '${_pageData.sections[sectionCnt - 1].content.replayAudios[k]}')"></button></p>`
+        instText += `<p tabindex="0" id="inst_${k}" aria-label="${removeTags(_pageData.sections[sectionCnt - 1].iText[k])}">${_pageData.sections[sectionCnt - 1].iText[k]} <button class="wrapTextaudio playing" id="wrapTextaudio_${k}" onclick="replayLastAudio(this, '${_pageData.sections[sectionCnt - 1].content.replayAudios[k]}')"></button></p>`
       }
 
       $("#section-" + sectionCnt)
@@ -215,6 +225,30 @@ function addSectionData() {
         window.refreshSnakeGame();  // ✅ Use this instead of startGame()
       });
       $("#homeBack").on("click", function () {
+        playClickThen();
+
+        window.disableSnakeControls();
+        window.disableIdleStart();
+
+        $(".playPause").hide();
+
+        setPopupOpenState(true);
+
+
+        var audio = document.getElementById("simulationAudio");
+        if (audio) {
+          // Stop audio whether it's playing or paused
+          audio.pause();
+          audio.currentTime = 0;
+        }
+
+        // Clear the manual pause flag since we're leaving
+        if (typeof isManuallyPaused !== 'undefined') {
+          isManuallyPaused = false;
+        }
+        if (typeof simulationWasPlaying !== 'undefined') {
+          simulationWasPlaying = false;
+        }
         jumtoPage(_controller.pageCnt - 1)
       });
       // $(".flipTextAudio").on("click", replayLastAudio);
@@ -1206,11 +1240,26 @@ function initSnakeGame() {
         // Trigger animation rendering
         requestAnimationFrame(render);
 
+        // wrong food — replace the audioEnd block only:
         audioEnd(() => {
-          inCorrectFood();
-          //$(".wrapTextaudio").prop("disabled", false);
-          isWrongAction = false;
-          isProcessingMove = false;
+          // ✅ Play idleAudio + update inst after wrongAudio
+          const idleAudio = _pageData.sections[sectionCnt - 1].idleAudio;
+          const idleText = _pageData.sections[sectionCnt - 1].idleText;
+
+          if (idleAudio && idleText) {
+            playBtnSounds(idleAudio);
+            updateText(idleText, idleAudio);
+
+            audioEnd(() => {
+              inCorrectFood();
+              isWrongAction = false;
+              isProcessingMove = false;
+            });
+          } else {
+            inCorrectFood();
+            isWrongAction = false;
+            isProcessingMove = false;
+          }
         });
 
         render();
@@ -1299,19 +1348,34 @@ function initSnakeGame() {
           $(this).removeClass("playing").addClass("paused");
         }
       });
-      // $(".wrapTextaudio").prop("disabled", true);
-      console.log("is correct")
-      playBtnSounds(audioPath, function () {
-        isAudioPlaying = false;
+
+      playBtnSounds(audioPath);
+      updateText(
+        _pageData.sections[sectionCnt - 1].content.correctFeedback.text,
+        _pageData.sections[sectionCnt - 1].content.correctFeedback.audioSrc
+      );
+
+      // ✅ After correctAudio ends → play idleAudio + update inst
+      audioEnd(function () {
+        if (isWinSequenceTriggered) return;
+
+        const idleAudio = _pageData.sections[sectionCnt - 1].idleAudio;
+        const idleText = _pageData.sections[sectionCnt - 1].idleText;
+        if (!idleAudio || !idleText) {
+          if (callback) callback();
+          return;
+        }
+
+        playBtnSounds(idleAudio);
+        updateText(idleText, idleAudio);
+
+        // ✅ After idleAudio ends → run callback (spawn food etc)
+        audioEnd(function () {
+          if (callback) callback();
+        });
       });
-      updateText(_pageData.sections[sectionCnt - 1].content.correctFeedback.text, _pageData.sections[sectionCnt - 1].content.correctFeedback.audioSrc);
 
-
-      if (callback) {
-        audioEnd(callback);
-      }
     } else {
-      console.log("is correct gone 2")
       if (callback) setTimeout(callback, 500);
     }
   }
@@ -1506,7 +1570,6 @@ function initSnakeGame() {
   document.addEventListener("mozfullscreenchange", resizeCanvas);
 
   function resetIdleTimer() {
-    // Stop idle graphic/audio immediately
     if (isIdle) {
       isIdle = false;
       cancelAnimationFrame(animationFrameId);
@@ -1514,19 +1577,16 @@ function initSnakeGame() {
       render();
     }
 
-    // Always clear existing timer
     clearTimeout(idleTimer);
     idleTimer = null;
 
-    // ❌ Do NOT restart if audio is playing
-    if (isAudioPlaying) {
-      return;
-    }
+    // ✅ Block all cases where idle should not start
+    if (isWinSequenceTriggered) return;
+    if (_isSimulationPaused) return;
+    if (isAudioPlaying) return;
+    if (!isGameActive) return;
 
-    // Only restart timer when game active AND no audio playing
-    if (isGameActive) {
-      idleTimer = setTimeout(triggerIdleState, IDLE_DURATION);
-    }
+    idleTimer = setTimeout(triggerIdleState, IDLE_DURATION);
   }
 
   function setupGlobalActivityListeners() {
@@ -1545,14 +1605,15 @@ function initSnakeGame() {
   setupGlobalActivityListeners();
 
   window.startIdleTimer = function () {
+    // ✅ All guards in one place
+    if (isWinSequenceTriggered) return;
+    if (_isSimulationPaused) return;
     if (!isGameActive) return;
-
-    clearTimeout(idleTimer);
-
-    // Don’t start idle timer during audio
     if (isAudioPlaying) return;
 
+    clearTimeout(idleTimer);
     idleTimer = setTimeout(triggerIdleState, IDLE_DURATION);
+    console.log("Idle timer started — fires in 5s");
   };
 
   window.stopIdleTimer = function () {
@@ -1567,10 +1628,21 @@ function initSnakeGame() {
   };
 
   function triggerIdleState() {
+    // ✅ Block if game won
+    if (isWinSequenceTriggered) return;
     if (!isGameActive) return;
     isIdle = true;
     clearTimeout(idleTimer);
     idleTimer = null;
+
+    // ✅ Update inst text with idle instruction
+    if (typeof updateText === 'function') {
+      updateText(
+        _pageData.sections[sectionCnt - 1].idleText,
+        _pageData.sections[sectionCnt - 1].idleAudio
+      );
+    }
+
     playIdleSoundNow();
     animateIdleLoop();
   }
@@ -1640,18 +1712,21 @@ function initSnakeGame() {
   const simAudio = document.getElementById("simulationAudio");
 
   simAudio.addEventListener("ended", () => {
-
-    if (simAudio.src !== activeAudio) {
-      return;   // ❌ Old audio ended, ignore it completely
-    }
     isAudioPlaying = false;
-    // Do NOT restart idle timer if we're in final screen or win animations
+
+    // ✅ Block if game won
+    if (isWinSequenceTriggered) return;
+
+    // ✅ Block if paused
+    if (_isSimulationPaused) return;
+
+    // ✅ Block if not allowed
     if (!allowIdleAfterAudio) return;
 
-    // Do NOT restart idle if game not active
+    // ✅ Block if game not active
     if (!isGameActive) return;
 
-    // Restart idle only if user is not interacting
+    // ✅ Start idle timer after audio completes
     window.startIdleTimer();
   });
 
@@ -1659,14 +1734,8 @@ function initSnakeGame() {
   const SNAKE_PAGE = 3;
 
   window.addEventListener("audioPlayingChanged", (e) => {
-
-    // console.log("working", gameStarted,e.detail.value);
-    // Run only if this is the active page
     if (_controller.pageCnt !== SNAKE_PAGE) return;
-
-
     if (!gameStarted) return;
-
 
     const popupOpen = e.detail.value;
     console.log("Dispatched", popupOpen);
@@ -1674,11 +1743,14 @@ function initSnakeGame() {
     if (popupOpen) {
       console.log("Popup opened -> stopping idle");
       disableTimer();
-
-      // 🔥 prevent idle from restarting until popup closes
       allowIdleAfterAudio = false;
     } else {
-      console.log("Popup closed -> resuming idle if allowed", !isAudioPlaying, isGameActive);
+      console.log("Popup closed -> resuming idle");
+      // ✅ Block if game already won
+      if (isWinSequenceTriggered) {
+        console.log("Popup closed but game won — idle blocked");
+        return;
+      }
       enableTimer();
     }
   });
@@ -1697,41 +1769,8 @@ function enableTimer() {
   }
 }
 
-// Simulation play and pause
-
-
-// function playPauseSimulation(btn) {
-//   playClickThen();
-//   var audio = document.getElementById("simulationAudio");
-//   var hasAudio = !!audio.getAttribute("src");
-
-//   _isSimulationPaused = !_isSimulationPaused;
-
-//   if (_isSimulationPaused) {
-//     // Pause state
-//     if (hasAudio) {
-//       audio.pause();
-//     }
-//     disableAll();
-//     btn.classList.remove("play");
-//     btn.classList.add("pause");
-//     btn.dataset.tooltip = "Play";
-//   } else {
-//     // Play state
-//     if (hasAudio) {
-//       audio.play().catch(() => { });
-//     }
-//     enableAll();
-//     btn.classList.remove("pause");
-//     btn.classList.add("play");
-//     btn.dataset.tooltip = "Pause";
-//   }
-
-// }
-
 function playPauseSimulation(btn) {
   playClickThen();
-  console.log(isAudioPlaying, "audio palying");
   var audio = document.getElementById("simulationAudio");
   var hasAudio = !!audio.getAttribute("src");
 
@@ -1739,7 +1778,8 @@ function playPauseSimulation(btn) {
 
   if (_isSimulationPaused) {
     // Pause state
-    if (hasAudio && isAudioPlaying) {
+    // ✅ Only pause if audio is actually playing right now
+    if (hasAudio && !audio.paused && !audio.ended) {
       audio.pause();
     }
     disableAll();
@@ -1748,11 +1788,10 @@ function playPauseSimulation(btn) {
     btn.dataset.tooltip = "Play";
   } else {
     // Play state
-    // Only resume if we still have an active (not-ended) clip
-    if (hasAudio && isAudioPlaying) {
+    // ✅ Only resume if audio is paused mid-way — not if it already ended
+    if (hasAudio && audio.paused && !audio.ended && audio.currentTime > 0) {
       audio.play().catch(() => { });
     }
-    // If not playing anymore (ended), do NOT start it again
     enableAll();
     btn.classList.remove("pause");
     btn.classList.add("play");
@@ -1773,7 +1812,6 @@ function enableAll() {
     audio.play();
   }
 }
-
 
 
 function disableAll() {
@@ -1838,7 +1876,7 @@ function stayPage() {
     resumeSimulationAudio();
   }
 
-  if(gameStarted) {
+  if (gameStarted) {
     window.enableSnakeControls();
     window.enableIdleStart();
   }
@@ -1852,6 +1890,8 @@ function leavePage() {
   window.disableIdleStart();
 
   $(".playPause").hide();
+
+  setPopupOpenState(true);
 
 
   var audio = document.getElementById("simulationAudio");
@@ -1872,7 +1912,7 @@ function leavePage() {
   jumtoPage(2);
 }
 function jumtoPage(pageNo) {
-  playClickThen();
+  // playClickThen();
 
   _controller.pageCnt = pageNo;
   console.log(pageNo, "pageNumber");
@@ -2297,7 +2337,7 @@ function withAudioSync() {
 
   _tweenTimeline.add(animateFadeIn($("h1"), 0.5).play(), 0.5);
 
-  _tweenTimeline.add(animateFadeIn($(".inst").find("#inst_1"), 0.5).play(), 0.5);
+  _tweenTimeline.add(animateFadeIn($(".inst").find("#inst_0"), 0.5).play(), 0.5);
   // _tweenTimeline.add(animateFadeOut($(".inst").find("#inst_1"), 0.5).play(), 4);
   // _tweenTimeline.add(animateFadeIn($(".inst").find("#inst_2"), 0.5).play(), 4.2);
   _tweenTimeline.add(animateFadeOut($(".ost"), 0.5).play(), 4.5);

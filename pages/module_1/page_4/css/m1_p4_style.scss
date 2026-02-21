@@ -135,16 +135,12 @@
 							width: 100%;
 							text-align: center;
 
+							#inst_0,
 							#inst_1,
-							#inst_2 {
+							#inst_2,
+							#inst_3 {
 								// opacity: 0;
 								display: none;
-							}
-
-							p {
-								display: flex;
-								justify-content: center;
-								align-items: center;
 							}
 
 							.wrapTextaudio {
@@ -196,6 +192,7 @@
 								margin-bottom: 0;
 
 								span {
+									display: inline;
 									color: red;
 								}
 							}

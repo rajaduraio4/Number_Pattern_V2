@@ -506,6 +506,7 @@ $bg-position: -120px -120px, 0 0, 20px 50px, 25px 55px, 50px 125px;*/
   transform: translate(-50%, -50%);
   width: 120px;
   height: 120px;
+  display: none;
   background: url("../images/hand_img.png") no-repeat center;
   background-size: contain;
   z-index: 10;

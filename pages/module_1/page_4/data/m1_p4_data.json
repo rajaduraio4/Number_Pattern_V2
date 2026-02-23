@@ -120,7 +120,7 @@
         "Look at the <span>pattern</span> and move the snake to the correct <span>shape.</span>"              
       ],
       "idleText": "Move the snake to the <span>next shape</span> in the pattern.",
-      "finalText":"Great job! You are a <span> Pattern</span> Star!",
+      "finalText":"Amazing! You are a <span> Pattern</span> Star!",
       "endAudio": "",
       "infoImg": "pages/module_1/page_4/images/fun_game.png",
       "backBtnSrc": "assets/images/back.png",

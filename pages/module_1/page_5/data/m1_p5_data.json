@@ -121,7 +121,7 @@
         "Move the caterpillar to the next number in the pattern."
       ],
       "idleText":"Move the caterpillar to the next <span>number</span> in the <span>pattern.</span>",
-      "finalText": "Great job! You are a Number Star!",
+      "finalText": "Amazing! You are a <span>Number Star!</span>",
       "greatJobAudio": "pages/module_1/page_5/audios/great_job.mp3",
       "greatJobAudio1": "pages/module_1/page_5/audios/great_job_1.mp3",
       "infoImg": "pages/module_1/page_5/images/fun_game.png",

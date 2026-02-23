@@ -352,7 +352,10 @@ function initSnakeGame() {
   /* =========================
      GAME CONFIG
   ========================= */
+
+  let _idleTimerScheduled = false;
   const BASE_TILE_COUNT = 10;
+  let _isIdleAudioPlaying = false;
   let tileCountX = 10;
   let tileCountY = 10;
   let tileSize = 0;
@@ -428,7 +431,12 @@ function initSnakeGame() {
     if (typeof _pageData !== "undefined" && _pageData.sections) {
       const audioPath = _pageData.sections[sectionCnt - 1].idleAudio;
       idleAudioInstance = new Audio(audioPath);
+
+      _isIdleAudioPlaying = true;              // ← ADD: mark idle audio as active
+
       idleAudioInstance.onended = () => {
+        _isIdleAudioPlaying = false;           // ← ADD: clear when idle audio ends
+
         if (!isIdle || !isGameActive) return;
         idleTimer = setTimeout(triggerIdleState, IDLE_DURATION);
       };
@@ -442,6 +450,7 @@ function initSnakeGame() {
       idleAudioInstance.currentTime = 0;
       idleAudioInstance = null;
     }
+    _isIdleAudioPlaying = false;   // ← ADD: always clear flag when stopping
   }
 
   /* =========================
@@ -1247,13 +1256,16 @@ function initSnakeGame() {
           const idleText = _pageData.sections[sectionCnt - 1].idleText;
 
           if (idleAudio && idleText) {
+            disableIdleStart();         // ← BEFORE playBtnSounds
             playBtnSounds(idleAudio);
             updateText(idleText, idleAudio);
 
-            audioEnd(() => {
-              inCorrectFood();
-              isWrongAction = false;
-              isProcessingMove = false;
+            inCorrectFood();
+            isWrongAction = false;
+            isProcessingMove = false;
+
+            audioEnd(function () {
+              enableIdleStart();        // ← only after idleAudio fully ends
             });
           } else {
             inCorrectFood();
@@ -1366,12 +1378,13 @@ function initSnakeGame() {
           return;
         }
 
+        disableIdleStart();           // ← BEFORE playBtnSounds
         playBtnSounds(idleAudio);
         updateText(idleText, idleAudio);
+        if (callback) callback();
 
-        // ✅ After idleAudio ends → run callback (spawn food etc)
         audioEnd(function () {
-          if (callback) callback();
+          enableIdleStart();          // ← only after idleAudio fully ends
         });
       });
 
@@ -1397,7 +1410,7 @@ function initSnakeGame() {
       });
 
       updateText(_pageData.sections[sectionCnt - 1].content.correctFeedback.text, _pageData.sections[sectionCnt - 1].content.correctFeedback.audioSrc);
-      console.log("final Audio playgin")
+      // console.log("final Audio playgin")
 
       if (callback) {
         audioEnd(callback);
@@ -1579,12 +1592,12 @@ function initSnakeGame() {
 
     clearTimeout(idleTimer);
     idleTimer = null;
+    _idleTimerScheduled = false;
 
-    // ✅ Block all cases where idle should not start
     if (isWinSequenceTriggered) return;
     if (_isSimulationPaused) return;
-    if (isAudioPlaying) return;
     if (!isGameActive) return;
+    if (isSimulationAudioActive()) return;   // ← ADD: don't start timer if audio active
 
     idleTimer = setTimeout(triggerIdleState, IDLE_DURATION);
   }
@@ -1605,20 +1618,31 @@ function initSnakeGame() {
   setupGlobalActivityListeners();
 
   window.startIdleTimer = function () {
-    // ✅ All guards in one place
     if (isWinSequenceTriggered) return;
     if (_isSimulationPaused) return;
     if (!isGameActive) return;
-    if (isAudioPlaying) return;
+
+    // ← KEY CHANGE: check real audio state, not a flag
+    if (isSimulationAudioActive()) {
+      console.log("startIdleTimer blocked — audio still active");
+      return;
+    }
+
+    if (_idleTimerScheduled) return;
+    _idleTimerScheduled = true;
 
     clearTimeout(idleTimer);
-    idleTimer = setTimeout(triggerIdleState, IDLE_DURATION);
+    idleTimer = setTimeout(() => {
+      _idleTimerScheduled = false;
+      triggerIdleState();
+    }, IDLE_DURATION);
     console.log("Idle timer started — fires in 5s");
   };
 
   window.stopIdleTimer = function () {
     clearTimeout(idleTimer);
     idleTimer = null;
+    _idleTimerScheduled = false;
     stopIdleSoundNow();
     if (isIdle) {
       isIdle = false;
@@ -1653,6 +1677,14 @@ function initSnakeGame() {
     animationFrameId = requestAnimationFrame(animateIdleLoop);
   }
 
+  function isSimulationAudioActive() {
+    const audio = document.getElementById("simulationAudio");
+    if (!audio) return false;
+    // "active" = currently playing, OR paused mid-track (user/code paused it)
+    // NOT active = never played, or fully ended
+    return !audio.paused || (audio.currentTime > 0 && !audio.ended);
+  }
+
   startGame();
 
   window.refreshSnakeGame = function () {
@@ -1674,6 +1706,7 @@ function initSnakeGame() {
 
     startGame();
   };
+
   /* =========================
      EXTERNAL CONTROL API
   ========================= */
@@ -1714,19 +1747,13 @@ function initSnakeGame() {
   simAudio.addEventListener("ended", () => {
     isAudioPlaying = false;
 
-    // ✅ Block if game won
     if (isWinSequenceTriggered) return;
-
-    // ✅ Block if paused
     if (_isSimulationPaused) return;
-
-    // ✅ Block if not allowed
     if (!allowIdleAfterAudio) return;
-
-    // ✅ Block if game not active
     if (!isGameActive) return;
+    if (_isIdleAudioPlaying) return;    // idleAudio handles its own cycle
 
-    // ✅ Start idle timer after audio completes
+    // Audio truly ended — now eligible for idle
     window.startIdleTimer();
   });
 
@@ -1911,6 +1938,7 @@ function leavePage() {
 
   jumtoPage(2);
 }
+
 function jumtoPage(pageNo) {
   // playClickThen();
 
@@ -1987,18 +2015,29 @@ function resetSimulationAudio() {
   audioElement.onended = null;
 }
 
+var _pendingAudioEndCb = null;
 
 
 
-
+// Safe audioEnd — cancels previous pending callback before registering new one
 function audioEnd(callback) {
   const audio = document.getElementById("simulationAudio");
-  audio.onended = null;
-  audio.onended = () => {
-    if (typeof callback === "function") callback();
-  };
-}
 
+  // Cancel any previously registered pending callback
+  if (_pendingAudioEndCb) {
+    audio.removeEventListener('ended', _pendingAudioEndCb);
+    _pendingAudioEndCb = null;
+  }
+
+  const handler = () => {
+    audio.removeEventListener('ended', handler);
+    _pendingAudioEndCb = null;
+    if (callback) callback();
+  };
+
+  _pendingAudioEndCb = handler;
+  audio.addEventListener('ended', handler);
+}
 
 
 function toggleAudio(el) {

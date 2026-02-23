@@ -207,7 +207,7 @@ function addSectionData() {
       $("#refresh").on("click", function () {
         jumtoPage(_controller.pageCnt);
         console.log("working");
-        initCaterpillarGame();
+        // initCaterpillarGame();
       });
 
       $("#homeBack").on("click", function () {
@@ -275,9 +275,6 @@ function initSnakeGameAtMount(mountEl) {
 }
 
 
-
-
-
 function initCaterpillarGame() {
 
   const BOARD_PADDING = 20; // space around grid (important)
@@ -309,13 +306,11 @@ function initCaterpillarGame() {
   let headScale = 1;
   let eatingAnimation = null;
 
-  // ✅ REMOVED: waveAnimation variables
-
   // ✅ Wrong food animation state
   let wrongFoodAnimation = null;
   let wrongFoodData = null;
 
-  // ✅ NEW: Food animation control
+  // ✅ Food animation control
   let foodAnimationEnabled = true;
 
   /* =========================
@@ -332,7 +327,7 @@ function initCaterpillarGame() {
   // Idle System
   let idleTimer = null;
   let isIdle = false;
-  const IDLE_DURATION = 5000; // ✅ Changed to 5 seconds
+  const IDLE_DURATION = 5000;
   let idleAudioInstance = null;
 
   // Offsets
@@ -363,6 +358,9 @@ function initCaterpillarGame() {
   let isMoving = false;
   let pendingMove = null;
 
+  // ✅ FIX: Track current audio src being played so stayPage can resume it
+  let currentAudioSrc = null;
+  let currentAudioTime = 0;
 
   /* =========================
      CONTROLS DOM
@@ -496,34 +494,18 @@ function initCaterpillarGame() {
     const logicalWidth = rect.width;
     const logicalHeight = rect.height;
 
-    /* =========================
-       FIXED GRID SIZE
-    ========================= */
-
     tileCountX = 28;
     tileCountY = 14;
 
-    /* =========================
-       SAFE PADDING AREA
-    ========================= */
-
-    const padding = 30;   // space around board
+    const padding = 30;
 
     const availableWidth = logicalWidth - padding * 2;
     const availableHeight = logicalHeight - padding * 2;
-
-    /* =========================
-       TILE SIZE FIT GUARANTEE
-    ========================= */
 
     const sizeX = availableWidth / tileCountX;
     const sizeY = availableHeight / tileCountY;
 
     tileSize = Math.min(sizeX, sizeY);
-
-    /* =========================
-       CENTER GRID
-    ========================= */
 
     const usedWidth = tileCountX * tileSize;
     const usedHeight = tileCountY * tileSize;
@@ -534,10 +516,6 @@ function initCaterpillarGame() {
     render();
   }
 
-
-
-
-
   function clearCanvas() {
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -546,47 +524,34 @@ function initCaterpillarGame() {
   }
 
   function drawGrid() {
-
     ctx.save();
     ctx.fillStyle = "#b0b0b0";
-
     const radius = 3;
-
     for (let y = 0; y < tileCountY; y++) {
       for (let x = 0; x < tileCountX; x++) {
-
         const cx = gridOffsetX + x * tileSize;
         const cy = gridOffsetY + y * tileSize;
-
         ctx.beginPath();
         ctx.arc(cx, cy, radius, 0, Math.PI * 2);
         ctx.fill();
       }
     }
-
     ctx.restore();
   }
 
-
-  // ✅ FIXED: Improved text rendering with better contrast and font weight
   function drawText(text, x, y, scale = 1) {
     ctx.save();
     const fontSize = tileSize * 0.5 * scale;
-    ctx.font = `Normal ${fontSize}px Alphakind`; // Changed to 900 for extra bold
+    ctx.font = `Normal ${fontSize}px Alphakind`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-
-    // ✅ Thicker white outline for better readability
     ctx.strokeStyle = "#ffffff00";
-    ctx.lineWidth = Math.max(6, fontSize * 0.2); // Increased outline thickness
+    ctx.lineWidth = Math.max(6, fontSize * 0.2);
     ctx.lineJoin = "round";
     ctx.miterLimit = 2;
     ctx.strokeText(text, x, y);
-
-    // Black fill for text
     ctx.fillStyle = "#000000";
     ctx.fillText(text, x, y);
-
     ctx.restore();
   }
 
@@ -616,8 +581,7 @@ function initCaterpillarGame() {
       t = easeInOutCubic(rawT);
     }
 
-    // ✅ FIXED: Body size matches grid exactly - no gaps
-    const baseBodySize = tileSize * 1.0; // Changed from 0.9 to 1.0
+    const baseBodySize = tileSize * 1.0;
 
     for (let i = snake.length - 1; i >= 0; i--) {
       const curr = snake[i];
@@ -632,12 +596,10 @@ function initCaterpillarGame() {
       const cx = x;
       const cy = y;
 
-      // --- HEAD DRAWING ---
       if (i === 0) {
         ctx.save();
         ctx.translate(cx, cy);
 
-        // Calculate direction to next body segment
         let offsetX = 0;
         let offsetY = 0;
         let lookDirX = 1;
@@ -647,13 +609,11 @@ function initCaterpillarGame() {
           const dx = curr.x - next.x;
           const dy = curr.y - next.y;
 
-          // Set offset to move head towards body
           const overlapAmount = tileSize * 0.15;
           offsetX = -dx * overlapAmount;
           offsetY = -dy * overlapAmount;
 
-          // Determine flip direction
-          if (dx < 0) lookDirX = -1; // Moving left, flip head
+          if (dx < 0) lookDirX = -1;
         }
 
         if (lookDirX === -1) ctx.scale(-1, 1);
@@ -663,29 +623,21 @@ function initCaterpillarGame() {
           currentScale = Math.sin(Date.now() / 300) * 0.1 + 1.1;
         }
 
-        // ✅ FIXED: Head bigger, positioned higher, and touches body
         const scaledHeadSize = tileSize * 1.25 * currentScale;
-        const verticalAdjust = -tileSize * 0.15; // ✅ Move head up more
+        const verticalAdjust = -tileSize * 0.15;
         ctx.drawImage(headImg, (-scaledHeadSize / 2) + offsetX * (lookDirX === -1 ? -1 : 1), (-scaledHeadSize / 2) + offsetY + verticalAdjust, scaledHeadSize, scaledHeadSize);
         ctx.restore();
-      }
-      // --- BODY DRAWING ---
-      else {
-        // ✅ REMOVED: Wave animation logic
+      } else {
         const currentSegmentScale = 1;
-
         const drawnSize = baseBodySize * currentSegmentScale;
         ctx.drawImage(bodyImg, cx - drawnSize / 2, cy - drawnSize / 2, drawnSize, drawnSize);
 
-        // ✅ Draw numbers with improved visibility
         if (numberSequence[i - 1] != null) {
           drawText(numberSequence[i - 1], cx, cy, currentSegmentScale);
         }
       }
     }
   }
-
-  // ✅ REMOVED: triggerWave function
 
   function drawFood() {
     if (isGameEnded) return;
@@ -701,7 +653,6 @@ function initCaterpillarGame() {
 
       if (!isPointInPolygon(cx, cy, polygon)) return;
 
-      // ✅ NEW: Check if animation is enabled
       const age = now - f.spawnTime;
       let scale = 1;
 
@@ -745,16 +696,13 @@ function initCaterpillarGame() {
       let alpha = 1;
 
       if (progress < 0.3) {
-        // Shake phase (first 30%)
         const shakeProgress = progress / 0.3;
         const shakeIntensity = tileSize * 0.15 * (1 - shakeProgress);
         offsetX = Math.sin(shakeProgress * Math.PI * 8) * shakeIntensity;
         offsetY = Math.cos(shakeProgress * Math.PI * 8) * shakeIntensity * 0.5;
       } else {
-        // Move away and fade phase (remaining 70%)
         const moveProgress = (progress - 0.3) / 0.7;
         const easeOut = 1 - Math.pow(1 - moveProgress, 3);
-
         offsetX = wrongFoodAnimation.dirX * tileSize * 3 * easeOut;
         offsetY = wrongFoodAnimation.dirY * tileSize * 3 * easeOut;
         alpha = 1 - moveProgress;
@@ -845,25 +793,29 @@ function initCaterpillarGame() {
       const cx = gridOffsetX + hitFood.x * tileSize + tileSize / 2;
       const cy = gridOffsetY + hitFood.y * tileSize + tileSize / 2;
       createParticles(cx, cy, "#FFD700");
-      // ✅ REMOVED: triggerWave() call
       animateEating();
 
       numberSequence.push(nextValue);
       nextValue++;
 
+      // ✅ Disable controls and stop idle while correct audio plays
       isGameActive = false;
       idleStopTimer();
 
-      // $(".wrapTextaudio").prop("disabled", true);
-      playBtnSounds(_pageData.sections[sectionCnt - 1].correctAudio);
       $(".wrapTextaudio").each(function () {
         if ($(this).hasClass("playing")) {
           $(this).removeClass("playing").addClass("paused");
         }
       });
-      updateText(_pageData.sections[sectionCnt - 1].content.correctFeedback.text, _pageData.sections[sectionCnt - 1].content.correctFeedback.audioSrc);
+
+      updateText(
+        _pageData.sections[sectionCnt - 1].content.correctFeedback.text,
+        _pageData.sections[sectionCnt - 1].content.correctFeedback.audioSrc
+      );
+      playBtnSounds(_pageData.sections[sectionCnt - 1].correctAudio);
 
       if (nextValue > currentPattern.end) {
+        // ✅ Pattern complete — victory flow
         if (victoryTriggered) return;
         victoryTriggered = true;
 
@@ -872,7 +824,7 @@ function initCaterpillarGame() {
 
         let finalSequenceCompleted = false;
 
-        // $(".wrapTextaudio").prop("disabled", true);
+        // Wait for correctAudio to finish, then start victory
         audioEnd(function () {
           shouldDrawVictoryLine = true;
 
@@ -883,7 +835,6 @@ function initCaterpillarGame() {
 
           setTimeout(function () {
             $(".animations").removeClass("show");
-            // $(".greetingsPop").css({ visibility: "visible", opacity: "1" });
           }, 2500);
 
           playBtnSounds(_pageData.sections[sectionCnt - 1].greatJobAudio);
@@ -901,28 +852,30 @@ function initCaterpillarGame() {
         return;
       }
 
+      // ✅ correctAudio ends → enable controls + spawn food immediately
       audioEnd(function () {
-        playBtnSounds(_pageData.sections[sectionCnt - 1].idleAudio);
+        inCorrectFood();       // spawn food right away
+        isGameActive = true;   // enable controls right away
 
+        // then play idleAudio
         updateText(
           _pageData.sections[sectionCnt - 1].idleText,
           _pageData.sections[sectionCnt - 1].idleAudio
         );
+        playBtnSounds(_pageData.sections[sectionCnt - 1].idleAudio);
 
-        // ✅ After idleAudio ends → respawn food + enable caterpillar
+        // ✅ ONLY after idleAudio ends → start idle countdown
         audioEnd(function () {
-          inCorrectFood();
-          isGameActive = true;
           idleStartTimer();
         });
       });
 
     } else if (hitFood && !hitFood.correct) {
+      // ✅ Wrong food hit — revert move immediately
       snake.shift();
       snake = prevSnake;
       isMoving = false;
 
-      // Store wrong food data and trigger animation
       wrongFoodData = { ...hitFood };
 
       const foodDx = hitFood.x - head.x;
@@ -938,37 +891,42 @@ function initCaterpillarGame() {
 
       foods = foods.filter(f => f !== hitFood);
 
-      // $(".wrapTextaudio").prop("disabled", true);
       $(".wrapTextaudio").each(function () {
         if ($(this).hasClass("playing")) {
           $(this).removeClass("playing").addClass("paused");
         }
       });
-      playBtnSounds(_pageData.sections[sectionCnt - 1].wrongAudio);
-      updateText(_pageData.sections[sectionCnt - 1].content.wrongFeedback.text, _pageData.sections[sectionCnt - 1].content.wrongFeedback.audioSrc);
+
+      // ✅ Disable controls and stop idle while wrong audio plays
       isGameActive = false;
       idleStopTimer();
 
+      updateText(
+        _pageData.sections[sectionCnt - 1].content.wrongFeedback.text,
+        _pageData.sections[sectionCnt - 1].content.wrongFeedback.audioSrc
+      );
+      playBtnSounds(_pageData.sections[sectionCnt - 1].wrongAudio);
+
       requestAnimationFrame(render);
 
+      // ✅ wrongAudio ends → enable controls + spawn food immediately
       audioEnd(function () {
-        playBtnSounds(_pageData.sections[sectionCnt - 1].idleAudio);
+        inCorrectFood();       // spawn food right away
+        isGameActive = true;   // enable controls right away
 
+        // then play idleAudio
         updateText(
           _pageData.sections[sectionCnt - 1].idleText,
           _pageData.sections[sectionCnt - 1].idleAudio
         );
+        playBtnSounds(_pageData.sections[sectionCnt - 1].idleAudio);
 
-        // ✅ After idleAudio ends → respawn food + enable caterpillar
-
+        // ✅ ONLY after idleAudio ends → start idle countdown
         audioEnd(function () {
-          inCorrectFood();
-          // $(".wrapTextaudio").prop("disabled", false);
-          isGameActive = true;
           idleStartTimer();
         });
       });
-      return;
+
     } else {
       snake.pop();
     }
@@ -987,11 +945,10 @@ function initCaterpillarGame() {
     drawFood();
     drawParticles();
 
-    // ✅ Show victory line if ready, otherwise always draw snake (even during game ended transition)
     if (isGameEnded && shouldDrawVictoryLine) {
       drawEndGameVictoryLine();
     } else {
-      drawSnake(); // ✅ keeps snake visible until victory line is ready
+      drawSnake();
     }
 
     ctx.restore();
@@ -999,34 +956,34 @@ function initCaterpillarGame() {
 
 
   /* =========================
-     VICTORY TIMESTAMPS (edit these manually)
+     VICTORY TIMESTAMPS
   ========================= */
   const VICTORY_TIMESTAMPS = {
     pattern1: [
-      2.0,  // 1  - "one"
-      4.0,  // 2  - "two"
-      5.0,  // 3  - "three"
-      6.0,  // 4  - "four"
-      7.0,  // 5  - "five"
-      8.0,  // 6  - "six"
-      9.0,  // 7  - "seven"
-      11.0, // 8  - "eight"
-      12.0, // 9  - "nine"
-      13.0, // 10 - "ten"
-      15.0  // final text
+      2.0,  // 1
+      4.0,  // 2
+      5.0,  // 3
+      6.0,  // 4
+      7.0,  // 5
+      8.0,  // 6
+      9.0,  // 7
+      10.0, // 8
+      11.0, // 9
+      12.0, // 10
+      13.0  // final text
     ],
     pattern2: [
-      2.0,  // 11 - "eleven"
-      4.0,  // 12 - "twelve"
-      5.0,  // 13 - "thirteen"
-      7.0,  // 14 - "fourteen"
-      8.0,  // 15 - "fifteen"
-      10.0,  // 16 - "sixteen"
-      11.0,  // 17 - "seventeen"
-      13.0, // 18 - "eighteen"
-      14.5, // 19 - "nineteen"
-      16.0, // 20 - "twenty"
-      17.0  // final text
+      2.0,  // 11
+      3.0,  // 12
+      4.0,  // 13
+      5.5,  // 14
+      7.0,  // 15
+      8.5, // 16
+      10.5, // 17
+      11.5, // 18
+      13.0, // 19
+      14.0, // 20
+      15.0  // final text
     ]
   };
 
@@ -1049,10 +1006,6 @@ function initCaterpillarGame() {
   let victoryRemainingItems = [];
   const VICTORY_ZOOM_DURATION = 600;
 
-  /* =========================
-     END GAME: DRAW FULL PATTERN (MODIFIED)
-     - Removed $(".inst") update from here
-  ========================= */
   function drawEndGameVictoryLine() {
     const rect = gameWrapper.getBoundingClientRect();
     const cx = rect.width / 2;
@@ -1078,7 +1031,6 @@ function initCaterpillarGame() {
 
       let zoomScale = 1;
 
-      // ✅ FIXED: only zoom if index is valid number (not -1, not 9999)
       if (!isHead && victorySequenceIndex >= 0 && victorySequenceIndex !== 9999) {
         const thisNumber = displayNumbers[i];
         const activeNumber = startNum + victorySequenceIndex;
@@ -1087,8 +1039,6 @@ function initCaterpillarGame() {
           const t = Math.min(elapsed / VICTORY_ZOOM_DURATION, 1);
           zoomScale = 1 + 0.6 * Math.sin(t * Math.PI);
 
-          // ✅ FIXED: do NOT reset victorySequenceIndex here
-          // just keep re-rendering while zoom is active
           if (elapsed < VICTORY_ZOOM_DURATION) {
             requestAnimationFrame(render);
           }
@@ -1115,24 +1065,12 @@ function initCaterpillarGame() {
       ? VICTORY_TIMESTAMPS.pattern1
       : VICTORY_TIMESTAMPS.pattern2;
 
-    const patternAudioKey = isPattern1
-      ? "greatJobAudio"   // pattern 1 (1-10)
-      : "greatJobAudio1"; // pattern 2 (11-20)
-
+    const patternAudioKey = isPattern1 ? "greatJobAudio" : "greatJobAudio1";
     const audioSrc = _pageData.sections[sectionCnt - 1][patternAudioKey];
     if (!audioSrc) {
       console.warn("Victory audio not found for key:", patternAudioKey);
       return;
     }
-
-    victoryTimeouts.forEach(t => clearTimeout(t));
-    victoryTimeouts = [];
-    victorySequenceIndex = -1;
-
-    // ✅ Move lastFiredIndex to outer scope so it persists across timeupdate calls
-    victoryLastFiredIndex = -1;
-
-    playBtnSounds(audioSrc);
 
     const audioEl = document.getElementById("simulationAudio");
     if (!audioEl) {
@@ -1140,74 +1078,82 @@ function initCaterpillarGame() {
       return;
     }
 
-    const numberTimestamps = timestamps.slice(0, -1);
-    const finalTimestamp = timestamps[timestamps.length - 1];
-
-    // ✅ Remove previous listener before adding new one
-    if (audioEl._victoryHandler) {
-      audioEl.removeEventListener("timeupdate", audioEl._victoryHandler);
-      audioEl._victoryHandler = null;
+    // Clear any old timeouts / RAF
+    victoryTimeouts.forEach(t => clearTimeout(t));
+    victoryTimeouts = [];
+    if (audioEl._victoryRaf) {
+      cancelAnimationFrame(audioEl._victoryRaf);
+      audioEl._victoryRaf = null;
     }
 
-    audioEl._victoryHandler = function () {
-      // ✅ FIXED: if audio ended or sequence done, remove listener immediately
-      if (audioEl.paused && audioEl.ended) {
-        audioEl.removeEventListener("timeupdate", audioEl._victoryHandler);
-        audioEl._victoryHandler = null;
-        return;
+    victorySequenceIndex = -1;
+    victoryLastFiredIndex = -1;
+
+    const numberTimestamps = timestamps.slice(0, -1); // all except last
+    const finalTimestamp  = timestamps[timestamps.length - 1];
+    const audioKey = patternAudioKey;
+
+    // ─── RAF polling loop ───────────────────────────────────────────────────
+    // Runs every animation frame (~16ms). Reads audio.currentTime directly
+    // so there is zero drift — fires the moment the timestamp is crossed.
+    function victoryRafLoop() {
+      if (audioEl.ended || audioEl.paused) {
+        audioEl._victoryRaf = null;
+        return; // stop if audio stopped
       }
 
-      const currentTime = audioEl.currentTime;
+      const ct = audioEl.currentTime;
 
-      // ✅ Final text — only fire once using victoryLastFiredIndex
-      if (currentTime >= finalTimestamp && victoryLastFiredIndex !== 9999) {
-        victoryLastFiredIndex = 9999;
-        victorySequenceIndex = 9999;
-        // ✅ Use updateText so replay button gets correct audio src
-        updateText(
-          _pageData.sections[sectionCnt - 1].finalText,
-          _pageData.sections[sectionCnt - 1][isPattern1 ? "greatJobAudio" : "greatJobAudio1"]
-        );
-        return;
-      }
+      // Check each number timestamp
+      for (let i = 0; i < numberTimestamps.length; i++) {
+        if (ct >= numberTimestamps[i] && victoryLastFiredIndex < i) {
+          victoryLastFiredIndex = i;
+          victorySequenceIndex  = i;
+          victoryZoomStart = performance.now();
 
-      if (victoryLastFiredIndex === 9999) return; // ✅ stop processing after final
-
-      // Find active number index
-      let activeIndex = -1;
-      for (let i = numberTimestamps.length - 1; i >= 0; i--) {
-        if (currentTime >= numberTimestamps[i]) {
-          activeIndex = i;
-          break;
+          const currentNumber = currentPattern.start + i;
+          updateText(
+            NUMBER_WORDS[currentNumber],
+            _pageData.sections[sectionCnt - 1][audioKey]
+          );
+          console.log("Victory number:", currentNumber, "ct:", ct.toFixed(3));
+          render();
+          break; // only one per frame — next frame catches next one if needed
         }
       }
 
-      // ✅ Only trigger on NEW index — victoryLastFiredIndex persists across pause/resume
-      if (activeIndex >= 0 && activeIndex !== victoryLastFiredIndex) {
-        victoryLastFiredIndex = activeIndex;
-        victorySequenceIndex = activeIndex;
-        victoryZoomStart = performance.now();
-        requestAnimationFrame(render);
-
-        const currentNumber = currentPattern.start + activeIndex;
-        // ✅ Use updateText so replay button gets correct audio src
+      // Check final text timestamp
+      if (ct >= finalTimestamp && victoryLastFiredIndex !== 9999) {
+        victoryLastFiredIndex = 9999;
+        victorySequenceIndex  = 9999;
         updateText(
-          NUMBER_WORDS[currentNumber],
-          _pageData.sections[sectionCnt - 1][isPattern1 ? "greatJobAudio" : "greatJobAudio1"]
+          _pageData.sections[sectionCnt - 1].finalText,
+          _pageData.sections[sectionCnt - 1][audioKey]
         );
+        console.log("Victory final text at ct:", ct.toFixed(3));
+        audioEl._victoryRaf = null;
+        return; // done — no need to keep polling
       }
 
-    };
+      // Continue polling
+      audioEl._victoryRaf = requestAnimationFrame(victoryRafLoop);
+    }
+    // ────────────────────────────────────────────────────────────────────────
 
-    audioEl.addEventListener("timeupdate", audioEl._victoryHandler);
+    playBtnSounds(audioSrc);
 
-    // ✅ FIXED: clean up on ended, don't reset victorySequenceIndex so position stays
+    // Start the RAF loop once audio begins playing
+    audioEl.addEventListener("playing", function onPlaying() {
+      audioEl.removeEventListener("playing", onPlaying);
+      audioEl._victoryRaf = requestAnimationFrame(victoryRafLoop);
+    }, { once: true });
+
+    // Cleanup on audio end
     audioEl.addEventListener("ended", function onVictoryEnded() {
-      if (audioEl._victoryHandler) {
-        audioEl.removeEventListener("timeupdate", audioEl._victoryHandler);
-        audioEl._victoryHandler = null;
+      if (audioEl._victoryRaf) {
+        cancelAnimationFrame(audioEl._victoryRaf);
+        audioEl._victoryRaf = null;
       }
-      // ✅ Do NOT reset victorySequenceIndex here — keeps caterpillar position stable
     }, { once: true });
   }
 
@@ -1253,8 +1199,6 @@ function initCaterpillarGame() {
       isPointInPolygon(cx - margin, cy + margin, polygon) &&
       isPointInPolygon(cx + margin, cy - margin, polygon) &&
       isPointInPolygon(cx - margin, cy - margin, polygon);
-
-    return isPointInPolygon(cx, cy, polygon);
   }
 
   /* =========================
@@ -1363,7 +1307,6 @@ function initCaterpillarGame() {
   }
 
   function inCorrectFood() {
-    // $(".wrapTextaudio").prop("disabled", false);
     if (isGameEnded) return;
     spawnFoods();
     render();
@@ -1392,11 +1335,11 @@ function initCaterpillarGame() {
   function initSnake(pattern) {
     numberSequence = [];
     const body = [
-      { x: 6, y: 5 },  // ✅ Head matches snake
+      { x: 6, y: 5 },
       { x: 5, y: 5 },
       { x: 4, y: 5 },
       { x: 3, y: 5 },
-      { x: 2, y: 5 }   // ✅ Tail has margin
+      { x: 2, y: 5 }
     ];
     prevSnake = body.map(b => ({ ...b }));
     for (let i = 1; i < body.length; i++) {
@@ -1406,11 +1349,11 @@ function initCaterpillarGame() {
   }
 
   function getNextPattern() {
-    let p;
-    do {
-      p = PATTERNS[Math.floor(Math.random() * PATTERNS.length)];
-    } while (p === currentPattern);
-    return p;
+    // Use localStorage so pattern alternates correctly across refreshes and page reloads
+    const lastIndex = parseInt(localStorage.getItem("caterpillarLastPatternIndex") ?? "-1", 10);
+    const nextIndex = (lastIndex + 1) % PATTERNS.length;
+    localStorage.setItem("caterpillarLastPatternIndex", String(nextIndex));
+    return PATTERNS[nextIndex];
   }
 
   function setDirection(dirKey) {
@@ -1456,7 +1399,7 @@ function initCaterpillarGame() {
   document.querySelectorAll(".controls button").forEach(btn => {
     btn.addEventListener("click", (e) => {
       e.preventDefault();
-      setDirection(btn.dataset.dir)
+      setDirection(btn.dataset.dir);
     });
   });
 
@@ -1476,7 +1419,6 @@ function initCaterpillarGame() {
   gameWrapper.addEventListener("touchend", idleStartTimer);
 
   function idleStartTimer() {
-    // ✅ Block if game ended OR victory line already showing
     if (isGameEnded || shouldDrawVictoryLine) return;
     if (!isGameActive) return;
 
@@ -1510,7 +1452,6 @@ function initCaterpillarGame() {
 
     isIdle = true;
 
-    // ✅ Use updateText so replay button gets correct audio src
     updateText(
       _pageData.sections[sectionCnt - 1].idleText,
       _pageData.sections[sectionCnt - 1].idleAudio
@@ -1519,19 +1460,41 @@ function initCaterpillarGame() {
     playIdleSoundNow();
   }
 
-  let imagesLoaded = 0;
-  headImg.onload = bodyImg.onload = () => {
-    imagesLoaded++;
-    if (imagesLoaded === 2) startGame();
-  };
+  // Guard: startGame must only ever run ONCE per initCaterpillarGame() call
+  let _gameStarted = false;
+
+  function tryStartGame() {
+    if (_gameStarted) return;   // prevent double call
+    _gameStarted = true;
+    startGame();
+  }
+
+  // Check if already cached first; if not, wait for onload
+  const headReady = headImg.complete && headImg.naturalWidth > 0;
+  const bodyReady = bodyImg.complete && bodyImg.naturalWidth > 0;
+
+  if (headReady && bodyReady) {
+    // Both cached — start immediately
+    tryStartGame();
+  } else if (headReady) {
+    // Head cached, wait for body
+    bodyImg.onload = bodyImg.onerror = tryStartGame;
+  } else if (bodyReady) {
+    // Body cached, wait for head
+    headImg.onload = headImg.onerror = tryStartGame;
+  } else {
+    // Neither cached — wait for both
+    let _readyCount = 0;
+    function onOne() { _readyCount++; if (_readyCount === 2) tryStartGame(); }
+    headImg.onload = headImg.onerror = onOne;
+    bodyImg.onload = bodyImg.onerror = onOne;
+  }
 
   /* =========================
      EXTERNAL CONTROL API
   ========================= */
 
-  // ✅ Enable movement + inputs
   window.enableCaterpillarControls = function () {
-    // ✅ If game ended, only re-enable UI — never touch isGameEnded or isGameActive
     if (isGameEnded) {
       console.log("Game ended — skipping caterpillar re-enable");
       return;
@@ -1544,11 +1507,9 @@ function initCaterpillarGame() {
   window.disableCaterpillarControls = function () {
     console.log("Caterpillar disabled");
     isGameActive = false;
-    // ✅ Never touch isGameEnded here
     idleStopTimer();
   };
 
-  // ✅ Enable idle system only
   window.enableCaterpillarIdle = function () {
     if (isGameActive && !isGameEnded) {
       idleStartTimer();
@@ -1556,7 +1517,6 @@ function initCaterpillarGame() {
     console.log("Idle enabled");
   };
 
-  // ✅ Disable idle system only
   window.disableCaterpillarIdle = function () {
     idleStopTimer();
     console.log("Idle disabled");
@@ -1570,17 +1530,12 @@ function initCaterpillarGame() {
     if (!isGameActive) return;
     idleStartTimer();
   };
-  /* =========================
-     ✅ NEW: FOOD ANIMATION CONTROLS
-  ========================= */
 
-  // Start food animation (bouncing/pulsing effect)
   window.startFoodAnimation = function () {
     foodAnimationEnabled = true;
     console.log("Food animation started");
   };
 
-  // Stop food animation (static display)
   window.stopFoodAnimation = function () {
     foodAnimationEnabled = false;
     console.log("Food animation stopped");
@@ -1603,46 +1558,150 @@ function initCaterpillarGame() {
     idleStartTimer();
   };
 
-  const SNAKE_PAGE = 4;
+  // ✅ FIX: expose internal audio resume for stayPage
+  window.resumeSimulationAudio = function () {
+    const audio = document.getElementById("simulationAudio");
+    if (!audio) return;
+
+    // ✅ Only resume if there is a valid src and it was paused mid-play (not ended)
+    if (audio.src && !audio.ended && audio.paused && audio.currentTime > 0) {
+      console.log("Resuming simulation audio from:", audio.currentTime);
+      audio.play().catch(e => console.log("Resume audio error:", e));
+    } else {
+      console.log("No resumable audio — nothing to resume");
+    }
+  };
+
+  const CATERPILLAR_PAGE = 4;
+
+  // audioPlayingChanged: true  = popup opened → pause simulationAudio + stop idle
+  //                       false = popup closed → resume simulationAudio (only if mid-play) + start idle
   window.addEventListener("audioPlayingChanged", (e) => {
-    if (_controller.pageCnt !== SNAKE_PAGE) return;
+    if (_controller.pageCnt !== CATERPILLAR_PAGE) return;
     if (!gameStarted) return;
 
     const popupOpen = e.detail.value;
-    console.log("Dispatched", popupOpen);
+    const audio = document.getElementById("simulationAudio");
+    console.log("audioPlayingChanged dispatched, popupOpen:", popupOpen);
 
     if (popupOpen) {
-      console.log("Popup opened -> stopping idle");
-      // ✅ Stop idle when popup opens
-      if (typeof window.caterpillarIdleStop === 'function') {
-        window.caterpillarIdleStop();
+      // Popup opened → pause audio if currently playing, stop idle
+      console.log("Popup opened -> pausing audio + stopping idle");
+      if (audio && !audio.paused && !audio.ended) {
+        audio.pause();
       }
+      idleStopTimer();
     } else {
-      console.log("Popup closed -> resuming idle");
-      // ✅ Only restart idle if game is still active (not ended)
-      if (typeof window.caterpillarIdleStart === 'function') {
-        window.caterpillarIdleStart();
+      // Popup closed → resume audio only if it was paused mid-play (not ended/not fresh)
+      console.log("Popup closed -> resuming audio + starting idle");
+      if (audio && audio.paused && !audio.ended && audio.currentTime > 0) {
+        audio.play().catch(e => console.log("Resume error:", e));
       }
+      // Start idle only if game still active (not victory)
+      if (isGameEnded || shouldDrawVictoryLine) {
+        console.log("Popup closed but game ended — idle blocked");
+        return;
+      }
+      idleStartTimer();
     }
   });
 }
 
+var activeAudio = null;
+
+function playBtnSounds(soundFile, callback) {
+  const audio = document.getElementById("simulationAudio");
+
+  audio.muted = false;
+
+  if (!soundFile) {
+    console.warn("Audio source missing!");
+    if (callback) callback();
+    return;
+  }
+
+  // ✅ Clear any existing onended triggers
+  audio.onended = null;
+
+  if (activeAudio && !activeAudio.paused) {
+    activeAudio.pause();
+  }
+
+  audio.loop = false;
+  audio.src = soundFile;
+  audio.load();
+
+  activeAudio = audio;
+
+  if (typeof callback === "function") {
+    audio.onended = () => {
+      audio.onended = null;
+      callback();
+    };
+  }
+
+  console.log("Playing:", soundFile);
+  audio.play().catch((err) => {
+    console.warn("Audio play error:", err);
+  });
+}
+
+// ✅ FIX: stayPage — resume simulationAudio if it was mid-play when popup opened
+function stayPage() {
+  playClickThen();
+
+  // Resume simulation audio if it was paused mid-play when popup opened
+  if (typeof window.resumeSimulationAudio === 'function') {
+    window.resumeSimulationAudio();
+  }
+
+  if (gameStarted) {
+    window.enableCaterpillarControls();  // re-enable movement
+    window.enableCaterpillarIdle();      // re-enable idle countdown
+  }
+
+  $("#home-popup").hide();
+}
 
 
+function leavePage() {
+  playClickThen();
+  $(".playPause").hide();
 
-// Simulation play and pause
+  setPopupOpenState(true);
+
+  // Disable controls and idle when leaving
+  window.disableCaterpillarControls();
+  window.disableCaterpillarIdle();
+
+  // Pause audio but keep currentTime so stayPage() can resume from same point
+  var audio = document.getElementById("simulationAudio");
+  if (audio) {
+    audio.pause();
+    // Do NOT reset currentTime — resumeSimulationAudio() in stayPage will resume from here
+  }
+
+  if (typeof isManuallyPaused !== 'undefined') {
+    isManuallyPaused = false;
+  }
+  if (typeof simulationWasPlaying !== 'undefined') {
+    simulationWasPlaying = false;
+  }
+
+  jumtoPage(2);
+}
+
 
 
 function playPauseSimulation(btn) {
   playClickThen();
   var audio = document.getElementById("simulationAudio");
-  var hasAudio = !!audio.getAttribute("src");
 
   _isSimulationPaused = !_isSimulationPaused;
 
   if (_isSimulationPaused) {
-    // Pause state
-    if (hasAudio) {
+    // Only pause if currently playing — don't touch if already ended
+    if (!audio.paused && !audio.ended) {
       audio.pause();
     }
     disableAll();
@@ -1650,8 +1709,8 @@ function playPauseSimulation(btn) {
     btn.classList.add("pause");
     btn.dataset.tooltip = "Play";
   } else {
-    // Play state
-    if (hasAudio) {
+    // Only resume if audio is paused mid-play — NOT if it already ended or never played
+    if (audio.paused && !audio.ended && audio.currentTime > 0) {
       audio.play().catch(() => { });
     }
     enableAll();
@@ -1665,7 +1724,7 @@ function playPauseSimulation(btn) {
 function enableAll() {
   playClickThen();
   if (gameStarted) {
-    window.enableCaterpillarControls(); // ✅ blocked internally if game ended
+    window.enableCaterpillarControls();
   }
   window.startFoodAnimation();
   $(".home_btn, .music,.introInfo,#full-screen, .wrapTextaudio").prop("disabled", false);
@@ -1681,7 +1740,7 @@ function enableAll() {
 
 function disableAll() {
   playClickThen();
-  window.disableCaterpillarControls(); // ✅ fixed — never touches isGameEnded
+  window.disableCaterpillarControls();
   window.stopFoodAnimation();
   $(".home_btn, .music,.introInfo,#full-screen,.wrapTextaudio").prop("disabled", true);
   const audio = document.getElementById("audio_src");
@@ -1692,16 +1751,11 @@ function disableAll() {
 }
 
 function updateText(txt, audio) {
-
-
   $("#simulationAudio").on("ended", function () {
     $(".wrapTextaudio")
       .removeClass("playing")
       .addClass("paused");
-    // console.log("audio ended");
   });
-
-
 
   let text = `
     <p tabindex="0" aria-label="${removeTags(txt)}">
@@ -1713,13 +1767,11 @@ function updateText(txt, audio) {
     </p>
   `;
 
-
   $(".inst").html(text);
   $(".wrapTextaudio")
     .removeClass("paused")
     .addClass("playing");
 }
-
 
 
 
@@ -1732,50 +1784,7 @@ function playFeedbackAudio(_audio) {
 }
 
 
-function stayPage() {
-  playClickThen();
-  // AudioController.play();
 
-  // Resume simulation audio if it was playing before popup
-  if (typeof resumeSimulationAudio === 'function') {
-    resumeSimulationAudio();
-  }
-
-  if (gameStarted) {
-    window.enableCaterpillarControls(); // ✅ blocked internally if game ended
-  }
-
-  resetSimulationAudio();
-
-  $("#home-popup").hide();
-}
-
-
-function leavePage() {
-  playClickThen();
-  $(".playPause").hide();
-
-  setPopupOpenState(true);
-
-  // ✅ Stop idle timer on leave
-  if (typeof window.caterpillarIdleStop === 'function') {
-    window.caterpillarIdleStop();
-  }
-
-  var audio = document.getElementById("simulationAudio");
-  if (audio) {
-    audio.pause();
-    audio.currentTime = 0;
-  }
-
-  if (typeof isManuallyPaused !== 'undefined') {
-    isManuallyPaused = false;
-  }
-  if (typeof simulationWasPlaying !== 'undefined') {
-    simulationWasPlaying = false;
-  }
-  jumtoPage(2);
-}
 
 function jumtoPage(pageNo) {
   // playClickThen();

@@ -961,10 +961,10 @@ function initCaterpillarGame() {
   const VICTORY_TIMESTAMPS = {
     pattern1: [
       2.0,  // 1
-      4.0,  // 2
-      5.0,  // 3
-      6.0,  // 4
-      7.0,  // 5
+      3.0,  // 2
+      4.0,  // 3
+      5.5,  // 4
+      6.5,  // 5
       8.0,  // 6
       9.0,  // 7
       10.0, // 8
@@ -979,7 +979,7 @@ function initCaterpillarGame() {
       5.5,  // 14
       7.0,  // 15
       8.5, // 16
-      10.5, // 17
+      10.0, // 17
       11.5, // 18
       13.0, // 19
       14.0, // 20
@@ -1094,17 +1094,42 @@ function initCaterpillarGame() {
     const audioKey = patternAudioKey;
 
     // ─── RAF polling loop ───────────────────────────────────────────────────
-    // Runs every animation frame (~16ms). Reads audio.currentTime directly
-    // so there is zero drift — fires the moment the timestamp is crossed.
+    // Runs every animation frame (~16ms). Reads audio.currentTime directly.
+    // On pause: stops RAF and registers a "playing" listener to auto-resume.
+    // On resume: "playing" fires → RAF restarts from correct currentTime.
     function victoryRafLoop() {
-      if (audioEl.ended || audioEl.paused) {
+      // Audio ended — fully done
+      if (audioEl.ended) {
         audioEl._victoryRaf = null;
-        return; // stop if audio stopped
+        return;
+      }
+
+      // Audio paused (play/pause button) — stop RAF, wait for resume
+      if (audioEl.paused) {
+        audioEl._victoryRaf = null;
+        // Re-attach playing listener so RAF restarts when audio resumes
+        audioEl.addEventListener("playing", function onResumed() {
+          audioEl.removeEventListener("playing", onResumed);
+          // Catch up: re-check all timestamps at current position
+          const ct = audioEl.currentTime;
+          for (let i = victoryLastFiredIndex + 1; i < numberTimestamps.length; i++) {
+            if (ct >= numberTimestamps[i]) {
+              victoryLastFiredIndex = i;
+              victorySequenceIndex  = i;
+              victoryZoomStart = performance.now();
+              const currentNumber = currentPattern.start + i;
+              updateText(NUMBER_WORDS[currentNumber], _pageData.sections[sectionCnt - 1][audioKey]);
+              render();
+            }
+          }
+          audioEl._victoryRaf = requestAnimationFrame(victoryRafLoop);
+        }, { once: true });
+        return;
       }
 
       const ct = audioEl.currentTime;
 
-      // Check each number timestamp
+      // Check each number timestamp in order
       for (let i = 0; i < numberTimestamps.length; i++) {
         if (ct >= numberTimestamps[i] && victoryLastFiredIndex < i) {
           victoryLastFiredIndex = i;
@@ -1118,7 +1143,7 @@ function initCaterpillarGame() {
           );
           console.log("Victory number:", currentNumber, "ct:", ct.toFixed(3));
           render();
-          break; // only one per frame — next frame catches next one if needed
+          break; // one per frame — next frame catches next if needed
         }
       }
 
@@ -1132,7 +1157,7 @@ function initCaterpillarGame() {
         );
         console.log("Victory final text at ct:", ct.toFixed(3));
         audioEl._victoryRaf = null;
-        return; // done — no need to keep polling
+        return; // done
       }
 
       // Continue polling
@@ -1142,7 +1167,7 @@ function initCaterpillarGame() {
 
     playBtnSounds(audioSrc);
 
-    // Start the RAF loop once audio begins playing
+    // Start RAF loop once audio begins playing
     audioEl.addEventListener("playing", function onPlaying() {
       audioEl.removeEventListener("playing", onPlaying);
       audioEl._victoryRaf = requestAnimationFrame(victoryRafLoop);
@@ -1349,11 +1374,10 @@ function initCaterpillarGame() {
   }
 
   function getNextPattern() {
-    // Use localStorage so pattern alternates correctly across refreshes and page reloads
-    const lastIndex = parseInt(localStorage.getItem("caterpillarLastPatternIndex") ?? "-1", 10);
-    const nextIndex = (lastIndex + 1) % PATTERNS.length;
-    localStorage.setItem("caterpillarLastPatternIndex", String(nextIndex));
-    return PATTERNS[nextIndex];
+    // Read current index from localStorage — do NOT increment here.
+    // Incrementing is done once externally (in refresh handler) before jumtoPage runs.
+    const currentIndex = parseInt(localStorage.getItem("caterpillarLastPatternIndex") ?? "0", 10);
+    return PATTERNS[currentIndex % PATTERNS.length];
   }
 
   function setDirection(dirKey) {
@@ -1647,6 +1671,16 @@ function playBtnSounds(soundFile, callback) {
 }
 
 // ✅ FIX: stayPage — resume simulationAudio if it was mid-play when popup opened
+// Called by the refresh button BEFORE jumtoPage — increments pattern once so
+// the next initCaterpillarGame() call picks up the alternate pattern
+function advanceCaterpillarPattern() {
+  const PATTERN_COUNT = 2; // must match PATTERNS.length inside initCaterpillarGame
+  const current = parseInt(localStorage.getItem("caterpillarLastPatternIndex") ?? "0", 10);
+  const next = (current + 1) % PATTERN_COUNT;
+  localStorage.setItem("caterpillarLastPatternIndex", String(next));
+  console.log("Pattern advanced:", current, "->", next);
+}
+
 function stayPage() {
   playClickThen();
 
@@ -1772,8 +1806,6 @@ function updateText(txt, audio) {
     .removeClass("paused")
     .addClass("playing");
 }
-
-
 
 function playFeedbackAudio(_audio) {
   $(".dummy-patch").show();

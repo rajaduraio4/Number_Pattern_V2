@@ -205,6 +205,7 @@ function addSectionData() {
       initSnakeGameAtMount(mountEl);
 
       $("#refresh").on("click", function () {
+        advanceCaterpillarPattern();
         jumtoPage(_controller.pageCnt);
         console.log("working");
         // initCaterpillarGame();
@@ -968,22 +969,22 @@ function initCaterpillarGame() {
       8.0,  // 6
       9.0,  // 7
       10.0, // 8
-      11.0, // 9
-      12.0, // 10
-      13.0  // final text
+      11.5, // 9
+      12.5, // 10
+      13.5  // final text
     ],
     pattern2: [
       2.0,  // 11
       3.0,  // 12
-      4.0,  // 13
-      5.5,  // 14
-      7.0,  // 15
-      8.5, // 16
+      4.5,  // 13
+      5.7,  // 14
+      7.3,  // 15
+      9.0, // 16
       10.0, // 17
       11.5, // 18
       13.0, // 19
-      14.0, // 20
-      15.0  // final text
+      14.5, // 25
+      15.5  // final text
     ]
   };
 
@@ -1016,7 +1017,7 @@ function initCaterpillarGame() {
     const endNum = currentPattern.end;
 
     const displayNumbers = [];
-    for (let i = endNum; i >= startNum; i--) {
+    for (let i = startNum; i <= endNum; i++) {
       displayNumbers.push(i);
     }
 
@@ -1027,12 +1028,12 @@ function initCaterpillarGame() {
     for (let i = 0; i < totalItems; i++) {
       const px = startX + (i * tileSize);
       const py = cy;
-      const isHead = (i === totalItems - 1);
+      const isHead = (i === 0); // head is at LEFT (i=0), body numbers follow to the right
 
       let zoomScale = 1;
 
       if (!isHead && victorySequenceIndex >= 0 && victorySequenceIndex !== 9999) {
-        const thisNumber = displayNumbers[i];
+        const thisNumber = displayNumbers[i - 1]; // offset by 1 since head is at i=0
         const activeNumber = startNum + victorySequenceIndex;
         if (thisNumber === activeNumber) {
           const elapsed = now - victoryZoomStart;
@@ -1048,12 +1049,16 @@ function initCaterpillarGame() {
       if (isHead) {
         const size = tileSize * 1.5;
         const headOffsetY = tileSize * 0.3;
-        ctx.drawImage(headImg, px - size / 2, py - size / 2 - headOffsetY, size, size);
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.scale(-1, 1); // flip horizontally so head faces left
+        ctx.drawImage(headImg, -size / 2, -size / 2 - headOffsetY, size, size);
+        ctx.restore();
       } else {
         const size = tileSize * 1.1 * zoomScale;
         ctx.save();
         ctx.drawImage(bodyImg, px - size / 2, py - size / 2, size, size);
-        drawText(displayNumbers[i], px, py, zoomScale);
+        drawText(displayNumbers[i - 1], px, py, zoomScale); // offset by 1
         ctx.restore();
       }
     }
@@ -1090,7 +1095,7 @@ function initCaterpillarGame() {
     victoryLastFiredIndex = -1;
 
     const numberTimestamps = timestamps.slice(0, -1); // all except last
-    const finalTimestamp  = timestamps[timestamps.length - 1];
+    const finalTimestamp = timestamps[timestamps.length - 1];
     const audioKey = patternAudioKey;
 
     // ─── RAF polling loop ───────────────────────────────────────────────────
@@ -1115,7 +1120,7 @@ function initCaterpillarGame() {
           for (let i = victoryLastFiredIndex + 1; i < numberTimestamps.length; i++) {
             if (ct >= numberTimestamps[i]) {
               victoryLastFiredIndex = i;
-              victorySequenceIndex  = i;
+              victorySequenceIndex = i;
               victoryZoomStart = performance.now();
               const currentNumber = currentPattern.start + i;
               updateText(NUMBER_WORDS[currentNumber], _pageData.sections[sectionCnt - 1][audioKey]);
@@ -1133,7 +1138,7 @@ function initCaterpillarGame() {
       for (let i = 0; i < numberTimestamps.length; i++) {
         if (ct >= numberTimestamps[i] && victoryLastFiredIndex < i) {
           victoryLastFiredIndex = i;
-          victorySequenceIndex  = i;
+          victorySequenceIndex = i;
           victoryZoomStart = performance.now();
 
           const currentNumber = currentPattern.start + i;
@@ -1150,7 +1155,7 @@ function initCaterpillarGame() {
       // Check final text timestamp
       if (ct >= finalTimestamp && victoryLastFiredIndex !== 9999) {
         victoryLastFiredIndex = 9999;
-        victorySequenceIndex  = 9999;
+        victorySequenceIndex = 9999;
         updateText(
           _pageData.sections[sectionCnt - 1].finalText,
           _pageData.sections[sectionCnt - 1][audioKey]
@@ -1231,11 +1236,11 @@ function initCaterpillarGame() {
   ========================= */
   function randomEmptyCell() {
     let pos, attempts = 0;
-    do {
+    do {      
       pos = {
-        x: Math.floor(Math.random() * tileCountX),
-        y: Math.floor(Math.random() * tileCountY)
-      };
+      x: Math.floor(Math.random() * (tileCountX - 2)) + 1,  // avoid x=0 and x=tileCountX-1
+      y: Math.floor(Math.random() * (tileCountY - 2)) + 1   // avoid y=0 and y=tileCountY-1
+    };
       attempts++;
     } while (
       attempts < 100 &&
@@ -1807,6 +1812,8 @@ function updateText(txt, audio) {
     .addClass("playing");
 }
 
+
+
 function playFeedbackAudio(_audio) {
   $(".dummy-patch").show();
   playBtnSounds(_audio)
@@ -2005,50 +2012,47 @@ function restartActivity() {
 var isEndAnimationTriggered = false;
 
 function showEndAnimations() {
-
-  if (window.stopSnakeIdle) {
-    window.stopSnakeIdle();
-  }
-
+  if (window.stopSnakeIdle) window.stopSnakeIdle();
   if (isEndAnimationTriggered) return;
   isEndAnimationTriggered = true;
 
   console.log("showEndAnimations initiated");
-
-  // Cleanup previous states
   closePopup('introPopup-1');
   pageVisited();
-  $(".greetingsPop").css({ visibility: "visible", opacity: "1" });
-  setTimeout(function () {
-    $(".confetti").addClass("show");
-  }, 500)
-
 
   const finalAudioSource = _pageData.sections[sectionCnt - 1].finalAudio;
   const $audio = $("#simulationAudio");
-
-  // Remove previous timeupdate listeners to prevent stacking
   $audio.off("timeupdate");
 
   if (finalAudioSource) {
-    // Play the final audio
     playBtnSounds(finalAudioSource);
 
-    // Logic: Show popup 2 seconds INTO the final audio
+    let greetingsShown = false;  // flag 1
+    let popupShown = false;      // flag 2
+
     $audio.on("timeupdate", function () {
-      // Using 'this' refers to the audio DOM element
-      if (this.currentTime > 2) {
-        // Trigger Visuals
+      const t = this.currentTime;
+
+      // Step 1: show greetings at 1s — once only
+      if (t > 0.3 && !greetingsShown) {
+        greetingsShown = true;
+        $(".greetingsPop").css({ visibility: "visible", opacity: "1" });
+        setTimeout(function () {
+          $(".confetti").addClass("show");
+        }, 1000);
+      }
+
+      // Step 2: show popup at 2.5s — once only, then remove listener
+      if (t > 2.5 && !popupShown) {
+        popupShown = true;
         $(".greetingsPop").css({ visibility: "hidden", opacity: "0" });
         $(".popup").css({ visibility: "visible", opacity: "1", display: "flex" });
         $(".confetti").removeClass("show");
-
-        // IMPORTANT: Remove listener so this block runs only once
-        $(this).off("timeupdate");
+        $(this).off("timeupdate"); // done — remove listener
       }
     });
+
   } else {
-    // Fallback if no audio exists
     $(".popup").css({ visibility: "visible", opacity: "1", display: "flex" });
   }
 }

@@ -1026,8 +1026,8 @@ function initSnakeGame() {
     let pos, attempts = 0;
     do {
       pos = {
-        x: Math.floor(Math.random() * tileCountX),
-        y: Math.floor(Math.random() * tileCountY)
+        x: Math.floor(Math.random() * (tileCountX - 2)) + 1,  // avoid x=0 and x=tileCountX-1
+        y: Math.floor(Math.random() * (tileCountY - 2)) + 1   // avoid y=0 and y=tileCountY-1
       };
       attempts++;
     } while (
@@ -1704,7 +1704,7 @@ function initSnakeGame() {
     isIdle = false;
     isEndGameWave = false;
 
-    startGame();
+    // startGame();
   };
 
   /* =========================
@@ -2139,47 +2139,55 @@ function restartActivity() {
 
 var isEndAnimationTriggered = false;
 
+
+
+var isEndAnimationTriggered = false;
+
 function showEndAnimations() {
+  if (window.disableIdleStart) window.disableIdleStart();
   if (isEndAnimationTriggered) return;
   isEndAnimationTriggered = true;
 
   console.log("showEndAnimations initiated");
-
-  // Cleanup previous states
   closePopup('introPopup-1');
   pageVisited();
-  $(".confetti").addClass("show");
 
   const finalAudioSource = _pageData.sections[sectionCnt - 1].finalAudio;
   const $audio = $("#simulationAudio");
-
-  // Remove previous timeupdate listeners to prevent stacking
   $audio.off("timeupdate");
 
   if (finalAudioSource) {
-    // Play the final audio
     playBtnSounds(finalAudioSource);
 
-    // Logic: Show popup 2 seconds INTO the final audio
+    let greetingsShown = false;  // flag 1
+    let popupShown = false;      // flag 2
+
     $audio.on("timeupdate", function () {
-      // Using 'this' refers to the audio DOM element
-      $(".greetingsPop").css({ visibility: "visible", opacity: "1" });
-      if (this.currentTime > 2.5) {
-        // Trigger Visuals
+      const t = this.currentTime;
+
+      // Step 1: show greetings at 1s — once only
+      if (t > 0.3 && !greetingsShown) {
+        greetingsShown = true;
+        $(".greetingsPop").css({ visibility: "visible", opacity: "1" });
+        setTimeout(function () {
+          $(".confetti").addClass("show");
+        }, 1000);
+      }
+
+      // Step 2: show popup at 2.5s — once only, then remove listener
+      if (t > 2.5 && !popupShown) {
+        popupShown = true;
         $(".greetingsPop").css({ visibility: "hidden", opacity: "0" });
         $(".popup").css({ visibility: "visible", opacity: "1", display: "flex" });
         $(".confetti").removeClass("show");
-
-        // IMPORTANT: Remove listener so this block runs only once
-        $(this).off("timeupdate");
+        $(this).off("timeupdate"); // done — remove listener
       }
     });
+
   } else {
-    // Fallback if no audio exists
     $(".popup").css({ visibility: "visible", opacity: "1", display: "flex" });
   }
 }
-
 
 
 // function closeIntroPop(ldx) {

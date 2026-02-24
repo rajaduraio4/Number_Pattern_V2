@@ -373,18 +373,101 @@ function initCaterpillarGame() {
   function createButton(dir, parent = controls) {
     const btn = createElement("button", null, parent);
     btn.dataset.dir = dir;
+
+    // Capitalize first letter
+    const tooltipText = dir.charAt(0).toUpperCase() + dir.slice(1);
+    btn.dataset.tooltip = tooltipText;
+
     const img = document.createElement("img");
-    img.src = `pages/module_1/page_5/images/${dir}.png`;
+    img.src = `pages/module_1/page_4/images/${dir}.png`;
     img.style.height = "auto";
+
     btn.appendChild(img);
     return btn;
   }
+
 
   createButton("up");
   const mid = createElement("div", "middle", controls);
   createButton("left", mid);
   createButton("right", mid);
   createButton("down");
+
+
+  const handGuideDiv = createElement("div", "hand-guide", outerContainer);
+  handGuideDiv.style.cssText = `
+    position: absolute;
+    bottom: 50px;
+    left: 40%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    opacity: 1;
+    z-index: 10;
+  `;
+
+  const handImg = document.createElement("img");
+  handImg.src = "pages/module_1/page_5/images/hand.png";
+  handImg.style.cssText = `
+    width: 56px;
+    height: auto;
+    transform-origin: center center;
+    animation: none;
+  `;
+  handGuideDiv.appendChild(handImg);
+
+  // Inject CSS keyframes for each direction once
+  if (!document.getElementById("handGuideStyles")) {
+    const styleTag = document.createElement("style");
+    styleTag.id = "handGuideStyles";
+    styleTag.textContent = `
+@keyframes handBounce { 
+        0%    { transform: translateY(0);     animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
+        45%   { transform: translateY(-50px); animation-timing-function: ease-in-out; }
+        55%   { transform: translateY(-50px); animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
+        100%  { transform: translateY(0); }
+      }
+      .hand-guide-visible img { animation: handBounce 1.8s cubic-bezier(0.45, 0, 0.55, 1) infinite !important; }
+    `;
+    document.head.appendChild(styleTag);
+  }
+
+  /**
+   * showHandGuide(direction, durationMs)
+   *   direction : "up" | "down" | "left" | "right" | null (pulse / generic)
+   *   durationMs: how long to show it (default: until hideHandGuide() is called)
+   */
+  window.showHandGuide = function () {
+    handGuideDiv.classList.add("hand-guide-visible");
+  };
+
+  window.hideHandGuide = function () {
+    handGuideDiv.classList.remove("hand-guide-visible");
+    handImg.style.animation = "none";
+  };
+
+  // ── Auto-detect best direction toward next food and show hand ──────────────
+  function showHandGuideTowardFood() {
+    if (!foods || foods.length === 0 || isGameEnded) return;
+
+    const correct = foods.find(f => !f.eaten && f.correct);
+    if (!correct || !snake.length) return;
+
+    const head = snake[0];
+    const dx = correct.x - head.x;
+    const dy = correct.y - head.y;
+
+    let dir;
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      dir = dx > 0 ? "right" : "left";
+    } else {
+      dir = dy > 0 ? "down" : "up";
+    }
+
+    window.showHandGuide(dir);
+  }
 
   /* =========================
      AUDIO HANDLERS
@@ -640,6 +723,7 @@ function initCaterpillarGame() {
     }
   }
 
+
   function drawFood() {
     if (isGameEnded) return;
 
@@ -668,13 +752,29 @@ function initCaterpillarGame() {
         }
       }
 
+      // ── ADDITION: idle highlight ring around correct food ──────────────
+      if (isIdle && f.correct) {
+        const pulseRadius = tileSize * 0.55 + tileSize * 0.15 * Math.sin(now / 250);
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(cx, cy, Math.max(0, pulseRadius), 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(255, 220, 50, 0.85)";
+        ctx.lineWidth = tileSize * 0.08;
+        ctx.shadowColor = "#FFD700";
+        ctx.shadowBlur = tileSize * 0.3;
+        ctx.stroke();
+        ctx.restore();
+        requestAnimationFrame(render); // keep pulsing while idle
+      }
+      // ── END ADDITION ───────────────────────────────────────────────────
+
       const radius = tileSize * 0.45 * scale;
       ctx.beginPath();
       ctx.arc(cx, cy, Math.max(0, radius), 0, Math.PI * 2);
-      ctx.fillStyle = "#ffd17c";
+      ctx.fillStyle = "#def22b";
       ctx.fill();
       ctx.lineWidth = 1;
-      ctx.strokeStyle = "#c08737";
+      ctx.strokeStyle = "#4a8c2c";
       ctx.stroke();
 
       if (scale > 0.5) {
@@ -686,7 +786,7 @@ function initCaterpillarGame() {
       }
     });
 
-    // Wrong food animation
+    // Wrong food animation  ← untouched from original
     if (wrongFoodData && wrongFoodAnimation) {
       const now = performance.now();
       const elapsed = now - wrongFoodAnimation.startTime;
@@ -718,10 +818,10 @@ function initCaterpillarGame() {
       const radius = tileSize * 0.45;
       ctx.beginPath();
       ctx.arc(cx, cy, Math.max(0, radius), 0, Math.PI * 2);
-      ctx.fillStyle = "#ffd17c";
+      ctx.fillStyle = "#def22b";
       ctx.fill();
       ctx.lineWidth = 1;
-      ctx.strokeStyle = "#c08737";
+      ctx.strokeStyle = "#4a8c2c";
       ctx.stroke();
 
       ctx.fillStyle = "#000";
@@ -740,6 +840,8 @@ function initCaterpillarGame() {
       }
     }
   }
+
+
 
   /* =========================
      MAIN RENDER LOOP
@@ -793,7 +895,7 @@ function initCaterpillarGame() {
 
       const cx = gridOffsetX + hitFood.x * tileSize + tileSize / 2;
       const cy = gridOffsetY + hitFood.y * tileSize + tileSize / 2;
-      createParticles(cx, cy, "#FFD700");
+      createParticles(cx, cy, "#4a8c2c");
       animateEating();
 
       numberSequence.push(nextValue);
@@ -1236,11 +1338,11 @@ function initCaterpillarGame() {
   ========================= */
   function randomEmptyCell() {
     let pos, attempts = 0;
-    do {      
+    do {
       pos = {
-      x: Math.floor(Math.random() * (tileCountX - 2)) + 1,  // avoid x=0 and x=tileCountX-1
-      y: Math.floor(Math.random() * (tileCountY - 2)) + 1   // avoid y=0 and y=tileCountY-1
-    };
+        x: Math.floor(Math.random() * (tileCountX - 2)) + 1,  // avoid x=0 and x=tileCountX-1
+        y: Math.floor(Math.random() * (tileCountY - 2)) + 1   // avoid y=0 and y=tileCountY-1
+      };
       attempts++;
     } while (
       attempts < 100 &&
@@ -1456,6 +1558,7 @@ function initCaterpillarGame() {
       idleTimer = null;
     }
     stopIdleSoundNow();
+    window.hideHandGuide();
     isIdle = false;
 
     idleTimer = setTimeout(triggerIdleState, IDLE_DURATION);
@@ -1487,6 +1590,10 @@ function initCaterpillarGame() {
     );
 
     playIdleSoundNow();
+
+    // ── ADDITION: show hand guide toward correct food during idle ──────
+    showHandGuideTowardFood();
+    // ── END ADDITION ───────────────────────────────────────────────────
   }
 
   // Guard: startGame must only ever run ONCE per initCaterpillarGame() call

@@ -490,6 +490,7 @@ $bg-position: -120px -120px, 0 0, 20px 50px, 25px 55px, 50px 125px;*/
   width: 150px !important;
   height: 100%;
   align-content: center;
+  position: relative;
 }
 #section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container .controls {
   width: 150px;
@@ -536,6 +537,51 @@ $bg-position: -120px -120px, 0 0, 20px 50px, 25px 55px, 50px 125px;*/
   display: flex;
   justify-content: center;
   align-items: center;
+}
+#section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container .controls button::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  background: rgba(0, 0, 0, 0.85);
+  font-weight: bold;
+  box-shadow: 0 2px 19px rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #fff;
+  font-size: 10px;
+  padding: 3px 5px;
+  border-radius: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+  font-family: "Times New Roman", Times, serif;
+  white-space: nowrap;
+  z-index: 10;
+}
+#section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container .controls button:hover::after {
+  opacity: 1;
+}
+#section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container .controls button[data-dir=up]::after {
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 15px;
+}
+#section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container .controls button[data-dir=down]::after {
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 15px;
+}
+#section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container .controls button[data-dir=left]::after {
+  right: 85%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-right: 6px;
+}
+#section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container .controls button[data-dir=right]::after {
+  left: 90%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-left: 2px;
 }
 #section-1 .content-holder .col-left .content .content-bg .content-style > .body .animat-container .controls button:active {
   transform: scale(0.85);

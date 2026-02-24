@@ -406,9 +406,15 @@ function initSnakeGame() {
   function createButton(dir, parent = controls) {
     const btn = createElement("button", null, parent);
     btn.dataset.dir = dir;
+
+    // Capitalize first letter
+    const tooltipText = dir.charAt(0).toUpperCase() + dir.slice(1);
+    btn.dataset.tooltip = tooltipText;
+
     const img = document.createElement("img");
     img.src = `pages/module_1/page_4/images/${dir}.png`;
     img.style.height = "auto";
+
     btn.appendChild(img);
     return btn;
   }
@@ -418,6 +424,49 @@ function initSnakeGame() {
   createButton("left", mid);
   createButton("right", mid);
   createButton("down");
+  // ── Hand-guide container ──
+  const handGuideDiv = createElement("div", "hand-guide", outerContainer);
+  handGuideDiv.style.cssText = `
+    position: absolute;
+    bottom: 40px;
+    left: 40%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    opacity: 1;
+    z-index: 10;
+  `;
+
+  const handImg = document.createElement("img");
+  handImg.src = "pages/module_1/page_4/images/hand.png";
+  handImg.style.cssText = `width: 56px; height: auto;`;
+  handGuideDiv.appendChild(handImg);
+
+  if (!document.getElementById("handGuideStyles")) {
+    const styleTag = document.createElement("style");
+    styleTag.id = "handGuideStyles";
+    styleTag.textContent = `
+      @keyframes handBounce {
+        0%    { transform: translateY(0);     animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
+        45%   { transform: translateY(-80px); animation-timing-function: ease-in-out; }
+        55%   { transform: translateY(-80px); animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
+        100%  { transform: translateY(0); }
+      }
+      .hand-guide-visible img { animation: handBounce 1.8s cubic-bezier(0.45, 0, 0.55, 1) infinite !important; }
+    `;
+    document.head.appendChild(styleTag);
+  }
+
+  window.showHandGuide = function () {
+    handGuideDiv.classList.add("hand-guide-visible");
+  };
+
+  window.hideHandGuide = function () {
+    handGuideDiv.classList.remove("hand-guide-visible");
+    handImg.style.animation = "none";
+  };
 
   /* =========================
      AUDIO & IDLE
@@ -843,6 +892,24 @@ function initSnakeGame() {
 
   function drawFood() {
     foods.forEach(f => {
+
+      // idle highlight ring around correct food
+      if (isIdle && f.correct) {
+        const now = Date.now();
+        const cx = gridOffsetX + f.x * tileSize + tileSize / 2;
+        const cy = gridOffsetY + f.y * tileSize + tileSize / 2;
+        const pulseRadius = tileSize * 0.55 + tileSize * 0.15 * Math.sin(now / 250);
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(cx, cy, Math.max(0, pulseRadius), 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(255, 220, 50, 0.85)";
+        ctx.lineWidth = tileSize * 0.08;
+        ctx.shadowColor = "#FFD700";
+        ctx.shadowBlur = tileSize * 0.3;
+        ctx.stroke();
+        ctx.restore();
+        requestAnimationFrame(render);
+      }
       const cx = gridOffsetX + f.x * tileSize + tileSize / 2;
       const cy = gridOffsetY + f.y * tileSize + tileSize / 2;
 
@@ -1593,6 +1660,7 @@ function initSnakeGame() {
     clearTimeout(idleTimer);
     idleTimer = null;
     _idleTimerScheduled = false;
+    if (typeof window.hideHandGuide === 'function') window.hideHandGuide();
 
     if (isWinSequenceTriggered) return;
     if (_isSimulationPaused) return;
@@ -1669,6 +1737,7 @@ function initSnakeGame() {
 
     playIdleSoundNow();
     animateIdleLoop();
+    if (typeof window.showHandGuide === 'function') window.showHandGuide();
   }
 
   function animateIdleLoop() {
